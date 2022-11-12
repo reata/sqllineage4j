@@ -8,6 +8,10 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 
 public class Helper {
+
+    public static void assertTableLineage(String sql) {
+        assertTableLineage(sql, Set.of(), Set.of());
+    }
     public static void assertTableLineage(String sql, Set<String> sourceTables) {
         assertTableLineage(sql, sourceTables, Set.of());
     }

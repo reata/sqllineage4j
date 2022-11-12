@@ -45,17 +45,17 @@ public class SelectTest {
 
     @Test
     public void testSelectValue() {
-        assertTableLineage("SELECT 1", Set.of());
+        assertTableLineage("SELECT 1");
     }
 
     @Test
     public void testSelectFunction() {
-        assertTableLineage("SELECT NOW()", Set.of());
+        assertTableLineage("SELECT NOW()");
     }
 
     @Test
     public void testSelectTrimFunctionWithFromKeyword() {
-        assertTableLineage("SELECT trim(BOTH '  ' FROM '  abc  ')", Set.of());
+        assertTableLineage("SELECT trim(BOTH '  ' FROM '  abc  ')");
     }
 
     @Test
@@ -221,5 +221,55 @@ public class SelectTest {
     @Test
     public void testSelectGroupByOrdinal() {
         assertTableLineage("SELECT col1, col2 FROM tab1 GROUP BY 1, 2", Set.of("tab1"));
+    }
+
+    @Test
+    public void testSelectFromValues() {
+        assertTableLineage("SELECT * FROM (VALUES (1, 2))");
+    }
+
+    @Test
+    public void testSelectFromValuesNewline() {
+        assertTableLineage("SELECT * FROM (\nVALUES (1, 2))");
+    }
+
+    @Test
+    public void testSelectFromValuesWithAlias() {
+        assertTableLineage("SELECT * FROM (VALUES (1, 2)) AS t(col1, col2)");
+    }
+
+    /*
+     unnest function is Presto specific
+     */
+    @Test
+    public void testSelectFromUnnest() {
+        assertTableLineage("SELECT student, score FROM tests CROSS JOIN UNNEST(scores) AS t (score)", Set.of("tests"));
+    }
+
+    @Test
+    public void testSelectFromUnnestParsedAsKeyword() {
+        assertTableLineage("SELECT student, score FROM tests CROSS JOIN UNNEST (scores) AS t (score)", Set.of("tests"));
+    }
+
+//    @Test
+//    public void testSelectFromUnnestWithOrdinality() {
+//        // SparkSQL doesn't support this syntax
+//        assertTableLineage("SELECT numbers, n, a\n" +
+//                "FROM (\n" +
+//                "  VALUES\n" +
+//                "    (ARRAY[2, 5]),\n" +
+//                "    (ARRAY[7, 8, 9])\n" +
+//                ") AS x (numbers)\n" +
+//                "CROSS JOIN UNNEST(numbers) WITH ORDINALITY AS t (n, a);");
+//    }
+
+    /*
+     generator is Snowflake specific
+     */
+    @Test
+    public void testSelectFromGenerator() {
+        assertTableLineage("SELECT seq4(), uniform(1, 10, random(12))\n" +
+                "FROM table(generator()) v\n" +
+                "ORDER BY 1;");
     }
 }
