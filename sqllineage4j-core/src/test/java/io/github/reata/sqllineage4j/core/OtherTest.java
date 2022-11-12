@@ -67,7 +67,6 @@ public class OtherTest {
 
     @Test
     public void testCreateAfterDrop() {
-        // multiple statements SQL not supported yet, come back later
         assertTableLineage("DROP TABLE IF EXISTS tab1; CREATE TABLE IF NOT EXISTS tab1 (col1 STRING)", Set.of(), Set.of("tab1"));
     }
 
@@ -126,26 +125,23 @@ public class OtherTest {
                 "DROP TABLE IF EXISTS tab1", Set.of(), Set.of());
     }
 
-//    @Test
-//    public void testDropAfterCreate() {
-//        // multiple statements SQL not supported yet, come back later
-//        assertTableLineage("CREATE TABLE IF NOT EXISTS tab1 (col1 STRING);DROP TABLE IF EXISTS tab1", Set.of(), Set.of("tab1"));
-//    }
-//
-//    @Test
-//    public void testDropTmpTabAfterCreate() {
-//        // multiple statements SQL not supported yet, come back later
-//        helper("create table tab_a as select * from tab_b;\n" +
-//                "insert overwrite table tab_c select * from tab_a;\n" +
-//                "drop table tab_a", Set.of("tab_b"), Set.of("tab_c"));
-//    }
-//
-//    @Test
-//    public void testNewCreateTabAsTmpTable() {
-//        // multiple statements SQL not supported yet, come back later
-//        helper("create table tab_a as select * from tab_b;\n" +
-//                "create table tab_c as select * from tab_a;", Set.of("tab_b"), Set.of("tab_c"));
-//    }
+    @Test
+    public void testDropAfterCreate() {
+        assertTableLineage("CREATE TABLE IF NOT EXISTS tab1 (col1 STRING);DROP TABLE IF EXISTS tab1", Set.of(), Set.of());
+    }
+
+    @Test
+    public void testDropTmpTabAfterCreate() {
+        assertTableLineage("create table tab_a as select * from tab_b;\n" +
+                "insert overwrite table tab_c select * from tab_a;\n" +
+                "drop table tab_a", Set.of("tab_b"), Set.of("tab_c"));
+    }
+
+    @Test
+    public void testNewCreateTabAsTmpTable() {
+        assertTableLineage("create table tab_a as select * from tab_b;\n" +
+                "create table tab_c as select * from tab_a;", Set.of("tab_b"), Set.of("tab_c"));
+    }
 
     @Test
     public void testAlterTableRename() {
@@ -185,11 +181,10 @@ public class OtherTest {
         assertTableLineage("select swap_partitions_between_tables('staging', 'min-range-value', 'max-range-value', 'target')", Set.of("staging"), Set.of("target"));
     }
 
-//    @Test
-//    public void testAlterTargetTableName() {
-//        // multiple statements SQL not supported yet, come back later
-//        helper("insert overwrite tab1 select * from tab2; alter table tab1 rename to tab3;", Set.of("tab2"), Set.of("tab3"));
-//    }
+    @Test
+    public void testAlterTargetTableName() {
+        assertTableLineage("insert overwrite tab1 select * from tab2; alter table tab1 rename to tab3;", Set.of("tab2"), Set.of("tab3"));
+    }
 
     @Test
     public void testRefreshTable() {

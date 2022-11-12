@@ -5,6 +5,7 @@ import io.github.reata.sqllineage4j.parser.SqlBaseBaseListener;
 import io.github.reata.sqllineage4j.parser.SqlBaseParser;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.javatuples.Pair;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -23,6 +24,7 @@ public class LineageAnalyzer {
         listener.getIntermediateTable().forEach(statementLineageHolder::addCTE);
         listener.getTargetTable().forEach(statementLineageHolder::addWrite);
         listener.getDrop().forEach(statementLineageHolder::addDrop);
+        listener.getRename().forEach(x -> statementLineageHolder.addRename(x.getValue0(), x.getValue1()));
         return statementLineageHolder;
     }
 
@@ -32,6 +34,7 @@ public class LineageAnalyzer {
         private final Set<String> targetTable = new HashSet<>();
         private final Set<String> intermediateTable = new HashSet<>();
         private final Set<String> drop = new HashSet<>();
+        private final Set<Pair<String, String>> rename = new HashSet<>();
 
         public Set<String> getSourceTable() {
             return sourceTable;
@@ -47,6 +50,10 @@ public class LineageAnalyzer {
 
         public Set<String> getDrop() {
             return drop;
+        }
+
+        public Set<Pair<String, String>> getRename() {
+            return rename;
         }
 
         @Override
@@ -78,6 +85,11 @@ public class LineageAnalyzer {
         @Override
         public void enterDropTable(SqlBaseParser.DropTableContext ctx) {
             handleMultipartIdentifier(ctx.multipartIdentifier(), "drop");
+        }
+
+        @Override
+        public void enterRenameTable(SqlBaseParser.RenameTableContext ctx) {
+            rename.add(Pair.with(ctx.from.getText(), ctx.to.getText()));
         }
 
         @Override

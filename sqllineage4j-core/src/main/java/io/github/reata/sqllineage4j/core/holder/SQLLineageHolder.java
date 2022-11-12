@@ -6,6 +6,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import org.javatuples.Pair;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -56,8 +57,25 @@ public class SQLLineageHolder {
             g = graph.traversal();
             if (holder.getDrop().size() > 0) {
                 g.V().hasId(holder.getDrop().stream().map(Table::hashCode).toArray()).not(__.bothE()).drop().iterate();
-            } else if (false) {
-                // TODO rename
+            } else if (holder.getRename().size() > 0) {
+                for (Pair<Table, Table> p : holder.getRename()) {
+                    Table tableOld = p.getValue0();
+                    Table tableNew = p.getValue1();
+                    for (Object targetId : g.V().hasId(tableOld.hashCode()).outE().otherV().id().toList()) {
+                        g.V().hasId(tableNew.hashCode()).as("src")
+                                .V().hasId(targetId).as("tgt")
+                                .coalesce(__.inE("lineage").where(__.otherV().is("src")),
+                                        __.addE("lineage").from("src")).next();
+                    }
+                    for (Object sourceId : g.V().hasId(tableOld.hashCode()).inE().otherV().id().toList()) {
+                        g.V().hasId(sourceId).as("src")
+                                .V().hasId(tableNew.hashCode()).as("tgt")
+                                .coalesce(__.inE("lineage").where(__.otherV().is("src")),
+                                        __.addE("lineage").from("src")).next();
+                    }
+                    g.V().hasId(tableOld.hashCode()).drop().iterate();
+                    g.V().hasId(tableNew.hashCode()).not(__.bothE()).drop().iterate();
+                }
             } else {
                 Set<Table> read = holder.getRead();
                 Set<Table> write = holder.getWrite();
@@ -94,6 +112,6 @@ public class SQLLineageHolder {
             ag.V().hasLabel(label).hasId(id).fold()
                     .coalesce(__.unfold(), __.addV(label).property(T.id, id).property("obj", bTable)).next();
         }
-        return b;
+        return a;
     }
 }

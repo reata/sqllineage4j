@@ -6,6 +6,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import org.javatuples.Pair;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -52,6 +53,13 @@ public class StatementLineageHolder {
         return propertyGetter("cte");
     }
 
+    public Set<Pair<Table, Table>> getRename() {
+        return g.E().hasLabel("rename").project("from", "to")
+                .by(__.outV().values("obj"))
+                .by(__.inV().values("obj")).toList()
+                .stream().map(x -> new Pair<>((Table) x.get("from"), (Table) x.get("to"))).collect(Collectors.toSet());
+    }
+
     public void addRead(String read) {
         propertySetter(new Table(read), "read");
     }
@@ -66,5 +74,14 @@ public class StatementLineageHolder {
 
     public void addCTE(String intermediate) {
         propertySetter(new Table(intermediate), "cte");
+    }
+
+    public void addRename(String src, String tgt) {
+        Table source = new Table(src);
+        Table target = new Table(tgt);
+        String label = Table.class.getSimpleName();
+        g.addV(label).property(T.id, source.hashCode()).property("obj", source).as("src")
+                .addV(label).property(T.id, target.hashCode()).property("obj", target).as("tgt")
+                .addE("rename").from("src").to("tgt").iterate();
     }
 }
