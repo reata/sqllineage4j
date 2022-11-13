@@ -184,6 +184,7 @@ public class OtherTest {
     @Test
     public void testAlterTargetTableName() {
         assertTableLineage("insert overwrite tab1 select * from tab2; alter table tab1 rename to tab3;", Set.of("tab2"), Set.of("tab3"));
+        assertTableLineage("insert overwrite tab2 select * from tab1; alter table tab1 rename to tab3;", Set.of("tab3"), Set.of("tab2"));
     }
 
     @Test
