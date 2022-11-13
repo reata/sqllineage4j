@@ -13,6 +13,7 @@
         <module>sqllineage4j-common</module>
         <module>sqllineage4j-core</module>
         <module>sqllineage4j-cli</module>
+        <module>sqllineage4j-test-coverage</module>
     </modules>
 
     <name>sqllineage4j</name>
@@ -77,5 +78,27 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.7</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>
