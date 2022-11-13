@@ -12,6 +12,7 @@
         <module>sqllineage4j-parser</module>
         <module>sqllineage4j-common</module>
         <module>sqllineage4j-core</module>
+        <module>sqllineage4j-cli</module>
     </modules>
 
     <name>sqllineage4j</name>
@@ -27,7 +28,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

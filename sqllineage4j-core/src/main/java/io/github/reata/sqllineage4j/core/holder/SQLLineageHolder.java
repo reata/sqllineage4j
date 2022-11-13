@@ -12,36 +12,42 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SQLLineageHolder {
-    private final Graph graph;
+    private final GraphTraversalSource g;
 
     public SQLLineageHolder(Graph graph) {
-        this.graph = graph;
+        this.g = graph.traversal();
     }
 
     public Set<Table> getSourceTables() {
-        GraphTraversalSource g = graph.traversal();
         Set<Table> sourceTables = g.V().where(__.outE()).not(__.inE()).values("obj").toList()
                 .stream().map(Table.class::cast).collect(Collectors.toSet());
-        Set<Table> sourceOnlyTables = g.V().has("source_only", true).values("obj").toList()
-                .stream().map(Table.class::cast).collect(Collectors.toSet());
-        Set<Table> selfLoopTables = g.V().has("selfloop", true).values("obj").toList()
-                .stream().map(Table.class::cast).collect(Collectors.toSet());
+        Set<Table> sourceOnlyTables = retrieveTagTables("source_only");
+        Set<Table> selfLoopTables = retrieveTagTables("selfloop");
         sourceTables.addAll(sourceOnlyTables);
         sourceTables.addAll(selfLoopTables);
         return sourceTables;
     }
 
     public Set<Table> getTargetTables() {
-        GraphTraversalSource g = graph.traversal();
         Set<Table> targetTables = g.V().where(__.inE()).not(__.outE()).values("obj").toList()
                 .stream().map(Table.class::cast).collect(Collectors.toSet());
-        Set<Table> targetOnlyTables = g.V().has("target_only", true).values("obj").toList()
-                .stream().map(Table.class::cast).collect(Collectors.toSet());
-        Set<Table> selfLoopTables = g.V().has("selfloop", true).values("obj").toList()
-                .stream().map(Table.class::cast).collect(Collectors.toSet());
+        Set<Table> targetOnlyTables = retrieveTagTables("target_only");
+        Set<Table> selfLoopTables = retrieveTagTables("selfloop");
         targetTables.addAll(targetOnlyTables);
         targetTables.addAll(selfLoopTables);
         return targetTables;
+    }
+
+    public Set<Table> getIntermediateTables() {
+        Set<Table> intermediateTables = g.V().where(__.inE()).where(__.outE()).values("obj").toList()
+                .stream().map(Table.class::cast).collect(Collectors.toSet());
+        intermediateTables.removeAll(retrieveTagTables("selfloop"));
+        return intermediateTables;
+    }
+
+    private Set<Table> retrieveTagTables(String tag) {
+        return g.V().has(tag, true).values("obj").toList()
+                .stream().map(Table.class::cast).collect(Collectors.toSet());
     }
 
     public static SQLLineageHolder of(StatementLineageHolder... statementLineageHolders) {
@@ -53,7 +59,7 @@ public class SQLLineageHolder {
         Graph graph = TinkerGraph.open();
         GraphTraversalSource g = graph.traversal();
         for (StatementLineageHolder holder : statementLineageHolders) {
-            graph = compose(graph, holder.getGraph());
+            compose(graph, holder.getGraph());
             g = graph.traversal();
             if (holder.getDrop().size() > 0) {
                 g.V().hasId(holder.getDrop().stream().map(Table::hashCode).toArray()).not(__.bothE()).drop().iterate();
@@ -102,7 +108,7 @@ public class SQLLineageHolder {
         return graph;
     }
 
-    private static Graph compose(Graph a, Graph b) {
+    private static void compose(Graph a, Graph b) {
         GraphTraversalSource ag = a.traversal();
         GraphTraversalSource bg = b.traversal();
         Set<Table> bTables = bg.V().values("obj").toList().stream().map(Table.class::cast).collect(Collectors.toSet());
@@ -112,6 +118,5 @@ public class SQLLineageHolder {
             ag.V().hasLabel(label).hasId(id).fold()
                     .coalesce(__.unfold(), __.addV(label).property(T.id, id).property("obj", bTable)).next();
         }
-        return a;
     }
 }

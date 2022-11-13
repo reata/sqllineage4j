@@ -8,23 +8,18 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-
     <artifactId>sqllineage4j-parser</artifactId>
-
     <name>sqllineage4j-parser</name>
 
-
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <dep.antlr.version>4.7.1</dep.antlr.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4</artifactId>
-            <version>4.8-1</version>
+            <version>${dep.antlr.version}</version>
         </dependency>
         <dependency>
             <groupId>com.facebook.presto</groupId>
@@ -38,7 +33,7 @@
             <plugin>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-maven-plugin</artifactId>
-                <version>4.8-1</version>
+                <version>${dep.antlr.version}</version>
                 <configuration>
                     <listener>true</listener>
                     <visitor>true</visitor>

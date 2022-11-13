@@ -17,7 +17,7 @@ public class Helper {
     }
 
     public static void assertTableLineage(String sql, Set<String> sourceTables, Set<String> targetTables) {
-        LineageRunner runner = new LineageRunner(sql);
+        LineageRunner runner = LineageRunner.builder(sql).build();
         assertEquals(sourceTables.stream().map(Table::new).collect(Collectors.toSet()), Set.copyOf(runner.sourceTables()));
         assertEquals(targetTables.stream().map(Table::new).collect(Collectors.toSet()), Set.copyOf(runner.targetTables()));
     }

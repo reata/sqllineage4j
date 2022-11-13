@@ -84,4 +84,13 @@ public class StatementLineageHolder {
                 .addV(label).property(T.id, target.hashCode()).property("obj", target).as("tgt")
                 .addE("rename").from("src").to("tgt").iterate();
     }
+
+    @Override
+    public String toString() {
+        return "table read: " + getRead().toString() + "\n" +
+                "table write: " + getWrite().toString() + "\n" +
+                "table cte: " + getCTE().toString() + "\n" +
+                "table drop: " + getDrop().toString() + "\n" +
+                "table cte: " + getRename().toString();
+    }
 }
