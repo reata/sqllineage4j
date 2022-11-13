@@ -11,20 +11,14 @@
     <artifactId>sqllineage4j-parser</artifactId>
     <name>sqllineage4j-parser</name>
 
-    <properties>
-        <dep.antlr.version>4.7.1</dep.antlr.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4</artifactId>
-            <version>${dep.antlr.version}</version>
         </dependency>
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-parser</artifactId>
-            <version>0.257-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
