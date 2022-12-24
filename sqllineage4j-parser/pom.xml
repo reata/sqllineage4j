@@ -16,10 +16,6 @@
             <groupId>org.antlr</groupId>
             <artifactId>antlr4</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-parser</artifactId>
-        </dependency>
     </dependencies>
 
     <build>

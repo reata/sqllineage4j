@@ -4,6 +4,7 @@ import io.github.reata.sqllineage4j.common.model.Table;
 import io.github.reata.sqllineage4j.core.holder.SQLLineageHolder;
 import io.github.reata.sqllineage4j.core.holder.StatementLineageHolder;
 import io.github.reata.sqllineage4j.parser.LineageParser;
+import io.github.reata.sqllineage4j.parser.StatementSplitter;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -41,7 +42,7 @@ public class LineageRunner {
     private LineageRunner(final Builder builder) {
         String sql = builder.sql;
         this.verbose = builder.verbose;
-        statements = LineageParser.split(sql);
+        statements = new StatementSplitter(sql).split();
         statementLineageHolders = statements.stream().map(x -> new LineageAnalyzer().analyze(LineageParser.parse(x))).collect(Collectors.toList());
         sqlLineageHolder = SQLLineageHolder.of(statementLineageHolders.toArray(StatementLineageHolder[]::new));
     }

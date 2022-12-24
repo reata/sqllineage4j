@@ -83,11 +83,6 @@
                 <artifactId>antlr4</artifactId>
                 <version>${dep.antlr.version}</version>
             </dependency>
-            <dependency>
-                <groupId>com.facebook.presto</groupId>
-                <artifactId>presto-parser</artifactId>
-                <version>0.276</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
