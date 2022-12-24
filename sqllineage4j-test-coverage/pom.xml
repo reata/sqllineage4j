@@ -9,6 +9,10 @@
     <artifactId>sqllineage4j-test-coverage</artifactId>
     <name>sqllineage4j-test-coverage</name>
 
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.github.reata</groupId>
