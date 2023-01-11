@@ -1,5 +1,6 @@
 package io.github.reata.sqllineage4j.core.holder;
 
+import io.github.reata.sqllineage4j.common.model.Column;
 import io.github.reata.sqllineage4j.common.model.Table;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -8,6 +9,7 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.javatuples.Pair;
 
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -83,6 +85,26 @@ public class StatementLineageHolder {
         g.addV(label).property(T.id, source.hashCode()).property("obj", source).as("src")
                 .addV(label).property(T.id, target.hashCode()).property("obj", target).as("tgt")
                 .addE("rename").from("src").to("tgt").iterate();
+    }
+
+    public void addColumnLineage(Column src, Column tgt) {
+        String label = Column.class.getSimpleName();
+        if (src.equals(tgt)) {
+            g.addV(label).property(T.id, src.hashCode()).property("obj", src).as("src")
+                    .addE("lineage").from("src").to("src").iterate();
+        } else {
+            g.addV(label).property(T.id, src.hashCode()).property("obj", src).as("src")
+                    .addV(label).property(T.id, tgt.hashCode()).property("obj", tgt).as("tgt")
+                    .addE("lineage").from("src").to("tgt").iterate();
+        }
+        g.V().hasId(Objects.requireNonNull(tgt.getParent()).hashCode()).as("tbl")
+                .V().hasId(tgt.hashCode()).as("col")
+                .addE("has_column").from("tbl").to("col").iterate();
+        if (src.getParent() != null) {
+            g.V().hasId(src.getParent().hashCode()).as("tbl")
+                    .V().hasId(src.hashCode()).as("col")
+                    .addE("has_column").from("tbl").to("col").iterate();
+        }
     }
 
     @Override

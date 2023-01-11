@@ -1,5 +1,8 @@
 package io.github.reata.sqllineage4j.core;
 
+import io.github.reata.sqllineage4j.common.entity.ColumnQualifierTuple;
+import io.github.reata.sqllineage4j.common.model.Column;
+import io.github.reata.sqllineage4j.common.model.Table;
 import io.github.reata.sqllineage4j.core.holder.StatementLineageHolder;
 import io.github.reata.sqllineage4j.parser.SqlBaseBaseListener;
 import io.github.reata.sqllineage4j.parser.SqlBaseParser;
@@ -7,10 +10,9 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.javatuples.Pair;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class LineageAnalyzer {
 
@@ -25,6 +27,7 @@ public class LineageAnalyzer {
         listener.getTargetTable().forEach(statementLineageHolder::addWrite);
         listener.getDrop().forEach(statementLineageHolder::addDrop);
         listener.getRename().forEach(x -> statementLineageHolder.addRename(x.getValue0(), x.getValue1()));
+        listener.getColumnLineage().forEach(x -> statementLineageHolder.addColumnLineage(x.getValue0(), x.getValue1()));
         return statementLineageHolder;
     }
 
@@ -35,6 +38,8 @@ public class LineageAnalyzer {
         private final Set<String> intermediateTable = new HashSet<>();
         private final Set<String> drop = new HashSet<>();
         private final Set<Pair<String, String>> rename = new HashSet<>();
+        private final List<Column> columns = new ArrayList<>();
+        private final Set<Pair<Column, Column>> columnLineage = new HashSet<>();
 
         public Set<String> getSourceTable() {
             return sourceTable;
@@ -54,6 +59,10 @@ public class LineageAnalyzer {
 
         public Set<Pair<String, String>> getRename() {
             return rename;
+        }
+
+        public Set<Pair<Column, Column>> getColumnLineage() {
+            return columnLineage;
         }
 
         @Override
@@ -140,6 +149,43 @@ public class LineageAnalyzer {
         }
 
         @Override
+        public void exitRegularQuerySpecification(SqlBaseParser.RegularQuerySpecificationContext ctx) {
+            String tgtTbl = "";
+            if (getTargetTable().size() == 1) {
+                tgtTbl = List.copyOf(getTargetTable()).get(0);
+            }
+            if (!tgtTbl.equals("")) {
+                for (Column tgtCol : columns) {
+                    tgtCol.setParent(new Table(tgtTbl));
+                    for (Column srcCol : tgtCol.toSourceColumns(getAliasMappingFromTableGroup())) {
+                        columnLineage.add(Pair.with(srcCol, tgtCol));
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void enterSelectClause(SqlBaseParser.SelectClauseContext ctx) {
+            for (SqlBaseParser.NamedExpressionContext namedExpressionContext : ctx.namedExpressionSeq().namedExpression()) {
+                SqlBaseParser.BooleanExpressionContext booleanExpressionContext = namedExpressionContext.expression().booleanExpression();
+                if (booleanExpressionContext instanceof SqlBaseParser.PredicatedContext) {
+                    SqlBaseParser.PredicatedContext predicatedContext = (SqlBaseParser.PredicatedContext) booleanExpressionContext;
+                    SqlBaseParser.ValueExpressionContext valueExpressionContext = predicatedContext.valueExpression();
+                    if (valueExpressionContext instanceof SqlBaseParser.ValueExpressionDefaultContext) {
+                        SqlBaseParser.ValueExpressionDefaultContext valueExpressionDefaultContext = (SqlBaseParser.ValueExpressionDefaultContext) valueExpressionContext;
+                        SqlBaseParser.PrimaryExpressionContext primaryExpressionContext = valueExpressionDefaultContext.primaryExpression();
+                        if (primaryExpressionContext instanceof SqlBaseParser.ColumnReferenceContext) {
+                            SqlBaseParser.ColumnReferenceContext columnReferenceContext = (SqlBaseParser.ColumnReferenceContext) primaryExpressionContext;
+                            Column column = new Column(columnReferenceContext.getText());
+                            column.setSourceColumns(ColumnQualifierTuple.create(columnReferenceContext.getText(), null));
+                            columns.add(column);
+                        }
+                    }
+                }
+            }
+        }
+
+        @Override
         public void enterFunctionCall(SqlBaseParser.FunctionCallContext ctx) {
             if (ctx.functionName().getText().equalsIgnoreCase("swap_partitions_between_tables")) {
                 List<SqlBaseParser.ExpressionContext> arguments = ctx.argument;
@@ -181,6 +227,10 @@ public class LineageAnalyzer {
                     drop.add(String.join(".", unquotedParts));
                     break;
             }
+        }
+
+        private Map<String, Table> getAliasMappingFromTableGroup() {
+            return sourceTable.stream().collect(Collectors.toMap(Function.identity(), Table::new));
         }
     }
 }

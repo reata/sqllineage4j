@@ -1,10 +1,12 @@
 package io.github.reata.sqllineage4j.core;
 
+import io.github.reata.sqllineage4j.common.model.Column;
 import io.github.reata.sqllineage4j.common.model.Table;
 import io.github.reata.sqllineage4j.core.holder.SQLLineageHolder;
 import io.github.reata.sqllineage4j.core.holder.StatementLineageHolder;
 import io.github.reata.sqllineage4j.parser.LineageParser;
 import io.github.reata.sqllineage4j.parser.StatementSplitter;
+import org.javatuples.Pair;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -15,7 +17,7 @@ public class LineageRunner {
         private final String sql;
         private boolean verbose = false;
 
-        private Builder (final String sql) {
+        private Builder(final String sql) {
             this.sql = sql;
         }
 
@@ -57,6 +59,14 @@ public class LineageRunner {
 
     public List<Table> intermediateTables() {
         return List.copyOf(sqlLineageHolder.getIntermediateTables());
+    }
+
+    public List<Pair<Column, Column>> getColumnLineage() {
+        return getColumnLineage(true);
+    }
+
+    public List<Pair<Column, Column>> getColumnLineage(boolean excludeSubquery) {
+        return List.copyOf(sqlLineageHolder.getColumnLineage(excludeSubquery));
     }
 
     public void printTableLineage() {
