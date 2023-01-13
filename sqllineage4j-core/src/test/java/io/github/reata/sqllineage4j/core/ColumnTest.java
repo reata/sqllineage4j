@@ -17,5 +17,15 @@ public class ColumnTest {
                         "FROM tab2",
                 Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
                         ColumnQualifierTuple.create("col1", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT col1 AS col2\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("col2", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT tab2.col1 AS col2\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("col2", "tab1"))));
     }
 }

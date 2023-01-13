@@ -167,6 +167,7 @@ public class LineageAnalyzer {
         @Override
         public void enterSelectClause(SqlBaseParser.SelectClauseContext ctx) {
             for (SqlBaseParser.NamedExpressionContext namedExpressionContext : ctx.namedExpressionSeq().namedExpression()) {
+                String alias = getIdentiferName(namedExpressionContext.errorCapturingIdentifier());
                 SqlBaseParser.BooleanExpressionContext booleanExpressionContext = namedExpressionContext.expression().booleanExpression();
                 if (booleanExpressionContext instanceof SqlBaseParser.PredicatedContext) {
                     SqlBaseParser.PredicatedContext predicatedContext = (SqlBaseParser.PredicatedContext) booleanExpressionContext;
@@ -176,8 +177,15 @@ public class LineageAnalyzer {
                         SqlBaseParser.PrimaryExpressionContext primaryExpressionContext = valueExpressionDefaultContext.primaryExpression();
                         if (primaryExpressionContext instanceof SqlBaseParser.ColumnReferenceContext) {
                             SqlBaseParser.ColumnReferenceContext columnReferenceContext = (SqlBaseParser.ColumnReferenceContext) primaryExpressionContext;
-                            Column column = new Column(columnReferenceContext.getText());
-                            column.setSourceColumns(ColumnQualifierTuple.create(columnReferenceContext.getText(), null));
+                            String columnName = columnReferenceContext.getText();
+                            Column column = new Column(alias.equals("") ? columnName : alias);
+                            column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
+                            columns.add(column);
+                        } else if (primaryExpressionContext instanceof SqlBaseParser.DereferenceContext) {
+                            SqlBaseParser.DereferenceContext dereferenceContext = (SqlBaseParser.DereferenceContext) primaryExpressionContext;
+                            String columnName = dereferenceContext.identifier().strictIdentifier().getText();
+                            Column column = new Column(alias.equals("") ? columnName : alias);
+                            column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
                             columns.add(column);
                         }
                     }
@@ -209,11 +217,9 @@ public class LineageAnalyzer {
         private void handleMultipartIdentifier(SqlBaseParser.MultipartIdentifierContext multipartIdentifierContext, String type) {
             List<String> unquotedParts = new ArrayList<>();
             for (SqlBaseParser.ErrorCapturingIdentifierContext errorCapturingIdentifierContext : multipartIdentifierContext.errorCapturingIdentifier()) {
-                SqlBaseParser.StrictIdentifierContext strictIdentifierContext = errorCapturingIdentifierContext.identifier().strictIdentifier();
-                if (strictIdentifierContext instanceof SqlBaseParser.QuotedIdentifierAlternativeContext) {
-                    unquotedParts.add(strictIdentifierContext.getText().replace("`", ""));
-                } else if (strictIdentifierContext instanceof SqlBaseParser.UnquotedIdentifierContext) {
-                    unquotedParts.add(strictIdentifierContext.getText());
+                String identifier = getIdentiferName(errorCapturingIdentifierContext);
+                if (!identifier.equals("")) {
+                    unquotedParts.add(identifier);
                 }
             }
             switch (type) {
@@ -227,6 +233,19 @@ public class LineageAnalyzer {
                     drop.add(String.join(".", unquotedParts));
                     break;
             }
+        }
+
+        private String getIdentiferName(SqlBaseParser.ErrorCapturingIdentifierContext errorCapturingIdentifierContext) {
+            String name = "";
+            if (errorCapturingIdentifierContext != null) {
+                SqlBaseParser.StrictIdentifierContext strictIdentifierContext = errorCapturingIdentifierContext.identifier().strictIdentifier();
+                if (strictIdentifierContext instanceof SqlBaseParser.QuotedIdentifierAlternativeContext) {
+                    name = strictIdentifierContext.getText().replace("`", "");
+                } else if (strictIdentifierContext instanceof SqlBaseParser.UnquotedIdentifierContext) {
+                    name = strictIdentifierContext.getText();
+                }
+            }
+            return name;
         }
 
         private Map<String, Table> getAliasMappingFromTableGroup() {
