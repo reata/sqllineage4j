@@ -119,8 +119,8 @@ public class SQLLineageHolder {
                     for (Table r : read) {
                         for (Table w : write) {
                             g.V().hasId(r.hashCode()).as("src")
-                                    .V().hasId(w.hashCode()).as("tgt")
-                                    .coalesce(__.inE("lineage").where(__.otherV().is("src")),
+                                    .V().hasId(w.hashCode())
+                                    .coalesce(__.inE("lineage").where(__.otherV().as("src")),
                                             __.addE("lineage").from("src")).next();
                         }
                     }

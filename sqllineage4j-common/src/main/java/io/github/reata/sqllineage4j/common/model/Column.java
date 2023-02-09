@@ -53,16 +53,31 @@ public class Column {
         for (ColumnQualifierTuple columnQualifierTuple : sourceColumns) {
             if (columnQualifierTuple.qualifier() == null) {
                 Column source = new Column(columnQualifierTuple.column());
-                for (Table table : aliasMapping.values()) {
-                    // in case of only one table, we get the right answer
-                    // in case of multiple tables, a bunch of possible tables are set
-                    source.setParent(table);
+                if (columnQualifierTuple.column().equals("*")) {
+                    // SELECT *
+                    for (Table table : aliasMapping.values()) {
+                        result.add(toSourceColumn(columnQualifierTuple.column(), table));
+                    }
+                } else {
+                    for (Table table : aliasMapping.values()) {
+                        // in case of only one table, we get the right answer
+                        // in case of multiple tables, a bunch of possible tables are set
+                        source.setParent(table);
+                    }
+                    result.add(source);
                 }
-                result.add(source);
             } else {
 
             }
         }
         return result;
+    }
+
+    private Column toSourceColumn(String columnName, Table parent) {
+        Column col = new Column(columnName);
+        if (parent != null) {
+            col.setParent(parent);
+        }
+        return col;
     }
 }

@@ -187,6 +187,12 @@ public class LineageAnalyzer {
                             Column column = new Column(alias.equals("") ? columnName : alias);
                             column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
                             columns.add(column);
+                        } else if (primaryExpressionContext instanceof SqlBaseParser.StarContext) {
+                            SqlBaseParser.StarContext starContext = (SqlBaseParser.StarContext) primaryExpressionContext;
+                            String columnName = starContext.ASTERISK().getText();
+                            Column column = new Column(columnName);
+                            column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
+                            columns.add(column);
                         }
                     }
                 }

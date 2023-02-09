@@ -89,21 +89,22 @@ public class StatementLineageHolder {
 
     public void addColumnLineage(Column src, Column tgt) {
         String label = Column.class.getSimpleName();
-        if (src.equals(tgt)) {
-            g.addV(label).property(T.id, src.hashCode()).property("obj", src).as("src")
-                    .addE("lineage").from("src").to("src").iterate();
-        } else {
-            g.addV(label).property(T.id, src.hashCode()).property("obj", src).as("src")
-                    .addV(label).property(T.id, tgt.hashCode()).property("obj", tgt).as("tgt")
-                    .addE("lineage").from("src").to("tgt").iterate();
-        }
-        g.V().hasId(Objects.requireNonNull(tgt.getParent()).hashCode()).as("tbl")
-                .V().hasId(tgt.hashCode()).as("col")
-                .addE("has_column").from("tbl").to("col").iterate();
+        g.V().hasLabel(label).hasId(src.hashCode()).fold()
+                .coalesce(__.unfold(), __.addV(label).property(T.id, src.hashCode()).property("obj", src)).next();
+        g.V().hasLabel(label).hasId(tgt.hashCode()).fold()
+                .coalesce(__.unfold(), __.addV(label).property(T.id, tgt.hashCode()).property("obj", tgt)).next();
+        g.V().hasLabel(label).hasId(src.hashCode()).as("src")
+                .V().hasLabel(label).hasId(tgt.hashCode()).as("tgt")
+                .addE("lineage").from("src").to("tgt").iterate();
+        g.V().hasId(Objects.requireNonNull(tgt.getParent()).hashCode()).as("src")
+                .V().hasId(tgt.hashCode())
+                .coalesce(__.inE("has_column").where(__.outV().as("src")),
+                        __.addE("has_column").from("src")).next();
         if (src.getParent() != null) {
-            g.V().hasId(src.getParent().hashCode()).as("tbl")
-                    .V().hasId(src.hashCode()).as("col")
-                    .addE("has_column").from("tbl").to("col").iterate();
+            g.V().hasId(src.getParent().hashCode()).as("src")
+                    .V().hasId(src.hashCode())
+                    .coalesce(__.inE("has_column").where(__.outV().is("src")),
+                            __.addE("has_column").from("src")).next();
         }
     }
 
