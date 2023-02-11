@@ -48,6 +48,7 @@
     <modules>
         <module>sqllineage4j-parser</module>
         <module>sqllineage4j-common</module>
+        <module>sqllineage4j-graph</module>
         <module>sqllineage4j-core</module>
         <module>sqllineage4j-cli</module>
         <module>sqllineage4j-test-coverage</module>
@@ -68,6 +69,11 @@
             <dependency>
                 <groupId>io.github.reata</groupId>
                 <artifactId>sqllineage4j-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.reata</groupId>
+                <artifactId>sqllineage4j-graph</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

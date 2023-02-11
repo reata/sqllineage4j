@@ -2,37 +2,28 @@ package io.github.reata.sqllineage4j.core.holder;
 
 import io.github.reata.sqllineage4j.common.model.Column;
 import io.github.reata.sqllineage4j.common.model.Table;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
-import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import io.github.reata.sqllineage4j.graph.GremlinLineageGraph;
+import io.github.reata.sqllineage4j.graph.LineageGraph;
 import org.javatuples.Pair;
 
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class StatementLineageHolder {
-    private final Graph graph = TinkerGraph.open();
-    private final GraphTraversalSource g = graph.traversal();
+    private final LineageGraph lineageGraph = new GremlinLineageGraph();
 
-    public Graph getGraph() {
-        return graph;
+    public LineageGraph getGraph() {
+        return lineageGraph;
     }
 
     private void propertySetter(Table value, String prop) {
-        String label = value.getClass().getSimpleName();
-        int id = value.hashCode();
-        g.V().hasLabel(label).hasId(id).fold()
-                .coalesce(__.unfold(), __.addV(label).property(T.id, id))
-                .property(prop, true)
-                .property("obj", value)
-                .next();
+        lineageGraph.addVertexIfNotExist(value, Collections.singletonMap(prop, Boolean.TRUE));
     }
 
     private Set<Table> propertyGetter(String prop) {
-        return g.V().has(prop, true).values("obj").toList()
+        return lineageGraph.retrieveVerticesByProps(Collections.singletonMap(prop, true))
                 .stream().map(Table.class::cast).collect(Collectors.toSet());
     }
 
@@ -56,10 +47,9 @@ public class StatementLineageHolder {
     }
 
     public Set<Pair<Table, Table>> getRename() {
-        return g.E().hasLabel("rename").project("from", "to")
-                .by(__.outV().values("obj"))
-                .by(__.inV().values("obj")).toList()
-                .stream().map(x -> new Pair<>((Table) x.get("from"), (Table) x.get("to"))).collect(Collectors.toSet());
+        return lineageGraph.retrieveEdgesByLabel("rename").stream().map(
+                e -> new Pair<>((Table) e.source(), (Table) e.target())
+        ).collect(Collectors.toSet());
     }
 
     public void addRead(String read) {
@@ -81,30 +71,18 @@ public class StatementLineageHolder {
     public void addRename(String src, String tgt) {
         Table source = new Table(src);
         Table target = new Table(tgt);
-        String label = Table.class.getSimpleName();
-        g.addV(label).property(T.id, source.hashCode()).property("obj", source).as("src")
-                .addV(label).property(T.id, target.hashCode()).property("obj", target).as("tgt")
-                .addE("rename").from("src").to("tgt").iterate();
+        lineageGraph.addVertexIfNotExist(source);
+        lineageGraph.addVertexIfNotExist(target);
+        lineageGraph.addEdgeIfNotExist("rename", source, target);
     }
 
     public void addColumnLineage(Column src, Column tgt) {
-        String label = Column.class.getSimpleName();
-        g.V().hasLabel(label).hasId(src.hashCode()).fold()
-                .coalesce(__.unfold(), __.addV(label).property(T.id, src.hashCode()).property("obj", src)).next();
-        g.V().hasLabel(label).hasId(tgt.hashCode()).fold()
-                .coalesce(__.unfold(), __.addV(label).property(T.id, tgt.hashCode()).property("obj", tgt)).next();
-        g.V().hasLabel(label).hasId(src.hashCode()).as("src")
-                .V().hasLabel(label).hasId(tgt.hashCode()).as("tgt")
-                .addE("lineage").from("src").to("tgt").iterate();
-        g.V().hasId(Objects.requireNonNull(tgt.getParent()).hashCode()).as("src")
-                .V().hasId(tgt.hashCode())
-                .coalesce(__.inE("has_column").where(__.outV().as("src")),
-                        __.addE("has_column").from("src")).next();
+        lineageGraph.addVertexIfNotExist(src);
+        lineageGraph.addVertexIfNotExist(tgt);
+        lineageGraph.addEdgeIfNotExist("lineage", src, tgt);
+        lineageGraph.addEdgeIfNotExist("has_column", Objects.requireNonNull(tgt.getParent()), tgt);
         if (src.getParent() != null) {
-            g.V().hasId(src.getParent().hashCode()).as("src")
-                    .V().hasId(src.hashCode())
-                    .coalesce(__.inE("has_column").where(__.outV().is("src")),
-                            __.addE("has_column").from("src")).next();
+            lineageGraph.addEdgeIfNotExist("has_column", Objects.requireNonNull(src.getParent()), src);
         }
     }
 
