@@ -176,4 +176,29 @@ public class ColumnTest {
                         Pair.with(ColumnQualifierTuple.create("col4", "tab2"),
                                 ColumnQualifierTuple.create("a.col1 + a.col2 + a.col3 + a.col4", "tab1"))));
     }
+
+    @Test
+    public void testSelectColumnUsingCaseWhen() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT CASE WHEN col1 = 1 THEN 'V1' WHEN col1 = 2 THEN 'V2' END\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("CASE WHEN col1 = 1 THEN 'V1' WHEN col1 = 2 THEN 'V2' END", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT CASE WHEN col1 = 1 THEN 'V1' WHEN col1 = 2 THEN 'V2' END AS col2\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("col2", "tab1"))));
+    }
+
+//    @Test
+//    public void testSelectColumnUsingCaseWhenWithSubquery() {
+//        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+//                        "SELECT CASE WHEN (SELECT avg(col1) FROM tab3) > 0 AND col2 = 1 THEN (SELECT avg(col1) FROM tab3) ELSE 0 END AS col1\n" +
+//                        "FROM tab4",
+//                Set.of(Pair.with(ColumnQualifierTuple.create("col2", "tab4"),
+//                                ColumnQualifierTuple.create("col1", "tab1")),
+//                        Pair.with(ColumnQualifierTuple.create("col1", "tab3"),
+//                                ColumnQualifierTuple.create("col1", "tab1"))));
+//    }
 }

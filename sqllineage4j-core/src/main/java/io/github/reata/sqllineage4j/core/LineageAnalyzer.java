@@ -284,6 +284,13 @@ public class LineageAnalyzer {
                 } else if (primaryExpressionContext instanceof SqlBaseParser.ParenthesizedExpressionContext) {
                     SqlBaseParser.ParenthesizedExpressionContext parenthesizedExpressionContext = (SqlBaseParser.ParenthesizedExpressionContext) primaryExpressionContext;
                     handleBooleanExpression(parenthesizedExpressionContext.expression().booleanExpression(), alias);
+                } else if (primaryExpressionContext instanceof SqlBaseParser.SearchedCaseContext) {
+                    SqlBaseParser.SearchedCaseContext searchedCaseContext = (SqlBaseParser.SearchedCaseContext) primaryExpressionContext;
+                    for (SqlBaseParser.WhenClauseContext whenClauseContext : searchedCaseContext.whenClause()) {
+                        for (SqlBaseParser.ExpressionContext expressionContext : whenClauseContext.expression()) {
+                            handleBooleanExpression(expressionContext.booleanExpression(), alias.equals("") ? getOriginalText(searchedCaseContext) : alias);
+                        }
+                    }
                 }
             } else if (valueExpressionContext instanceof SqlBaseParser.ComparisonContext) {
                 SqlBaseParser.ComparisonContext comparisonContext = (SqlBaseParser.ComparisonContext) valueExpressionContext;
