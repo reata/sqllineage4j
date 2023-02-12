@@ -193,6 +193,22 @@ public class LineageAnalyzer {
                             Column column = new Column(columnName);
                             column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
                             columns.add(column);
+                        } else if (primaryExpressionContext instanceof SqlBaseParser.FunctionCallContext) {
+                            SqlBaseParser.FunctionCallContext functionCallContext = (SqlBaseParser.FunctionCallContext) primaryExpressionContext;
+                            for (SqlBaseParser.ExpressionContext expressionContext : functionCallContext.expression()) {
+                                Column column = new Column(alias.equals("") ? functionCallContext.getText() : alias);
+                                String sourceColumnName = expressionContext.getText();
+                                column.setSourceColumns(ColumnQualifierTuple.create(sourceColumnName, null));
+                                columns.add(column);
+                            }
+                        } else if (primaryExpressionContext instanceof SqlBaseParser.CastContext) {
+                            SqlBaseParser.CastContext castContext = (SqlBaseParser.CastContext) primaryExpressionContext;
+                            String sourceColumnName = castContext.expression().getText();
+                            String castType = castContext.dataType().getText();
+                            String columnName = "CAST(" + sourceColumnName + " AS " + castType + ")";
+                            Column column = new Column(alias.equals("") ? columnName : alias);
+                            column.setSourceColumns(ColumnQualifierTuple.create(sourceColumnName, null));
+                            columns.add(column);
                         }
                     }
                 }

@@ -46,4 +46,38 @@ public class ColumnTest {
                         Pair.with(ColumnQualifierTuple.create("*", "tab3"),
                                 ColumnQualifierTuple.create("*", "tab1"))));
     }
+
+    @Test
+    public void testSelectColumnUsingFunction() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT max(col1),\n" +
+                        "       count(*)\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("max(col1)", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("*", "tab2"),
+                                ColumnQualifierTuple.create("count(*)", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT max(col1) AS col2,\n" +
+                        "       count(*)  AS cnt\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col2", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("*", "tab2"),
+                                ColumnQualifierTuple.create("cnt", "tab1"))));
+    }
+
+    @Test
+    public void testSelectColumnUsingCast() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT cast(col1 as timestamp)\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("cast(col1 as timestamp)", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT cast(col1 as timestamp) as col2\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("col2", "tab1"))));
+    }
 }
