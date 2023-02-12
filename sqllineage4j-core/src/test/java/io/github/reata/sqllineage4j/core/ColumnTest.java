@@ -68,6 +68,17 @@ public class ColumnTest {
     }
 
     @Test
+    public void testSelectColumnUsingFunctionWithComplexParameter() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT if(col1 = 'foo' AND col2 = 'bar', 1, 0) AS flag\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("flag", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("flag", "tab1"))));
+    }
+
+    @Test
     public void testSelectColumnUsingCast() {
         assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
                         "SELECT cast(col1 as timestamp)\n" +

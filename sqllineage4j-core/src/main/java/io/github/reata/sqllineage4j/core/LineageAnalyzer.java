@@ -169,49 +169,7 @@ public class LineageAnalyzer {
             for (SqlBaseParser.NamedExpressionContext namedExpressionContext : ctx.namedExpressionSeq().namedExpression()) {
                 String alias = getIdentiferName(namedExpressionContext.errorCapturingIdentifier());
                 SqlBaseParser.BooleanExpressionContext booleanExpressionContext = namedExpressionContext.expression().booleanExpression();
-                if (booleanExpressionContext instanceof SqlBaseParser.PredicatedContext) {
-                    SqlBaseParser.PredicatedContext predicatedContext = (SqlBaseParser.PredicatedContext) booleanExpressionContext;
-                    SqlBaseParser.ValueExpressionContext valueExpressionContext = predicatedContext.valueExpression();
-                    if (valueExpressionContext instanceof SqlBaseParser.ValueExpressionDefaultContext) {
-                        SqlBaseParser.ValueExpressionDefaultContext valueExpressionDefaultContext = (SqlBaseParser.ValueExpressionDefaultContext) valueExpressionContext;
-                        SqlBaseParser.PrimaryExpressionContext primaryExpressionContext = valueExpressionDefaultContext.primaryExpression();
-                        if (primaryExpressionContext instanceof SqlBaseParser.ColumnReferenceContext) {
-                            SqlBaseParser.ColumnReferenceContext columnReferenceContext = (SqlBaseParser.ColumnReferenceContext) primaryExpressionContext;
-                            String columnName = columnReferenceContext.getText();
-                            Column column = new Column(alias.equals("") ? columnName : alias);
-                            column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
-                            columns.add(column);
-                        } else if (primaryExpressionContext instanceof SqlBaseParser.DereferenceContext) {
-                            SqlBaseParser.DereferenceContext dereferenceContext = (SqlBaseParser.DereferenceContext) primaryExpressionContext;
-                            String columnName = dereferenceContext.identifier().strictIdentifier().getText();
-                            Column column = new Column(alias.equals("") ? columnName : alias);
-                            column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
-                            columns.add(column);
-                        } else if (primaryExpressionContext instanceof SqlBaseParser.StarContext) {
-                            SqlBaseParser.StarContext starContext = (SqlBaseParser.StarContext) primaryExpressionContext;
-                            String columnName = starContext.ASTERISK().getText();
-                            Column column = new Column(columnName);
-                            column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
-                            columns.add(column);
-                        } else if (primaryExpressionContext instanceof SqlBaseParser.FunctionCallContext) {
-                            SqlBaseParser.FunctionCallContext functionCallContext = (SqlBaseParser.FunctionCallContext) primaryExpressionContext;
-                            for (SqlBaseParser.ExpressionContext expressionContext : functionCallContext.expression()) {
-                                Column column = new Column(alias.equals("") ? functionCallContext.getText() : alias);
-                                String sourceColumnName = expressionContext.getText();
-                                column.setSourceColumns(ColumnQualifierTuple.create(sourceColumnName, null));
-                                columns.add(column);
-                            }
-                        } else if (primaryExpressionContext instanceof SqlBaseParser.CastContext) {
-                            SqlBaseParser.CastContext castContext = (SqlBaseParser.CastContext) primaryExpressionContext;
-                            String sourceColumnName = castContext.expression().getText();
-                            String castType = castContext.dataType().getText();
-                            String columnName = "CAST(" + sourceColumnName + " AS " + castType + ")";
-                            Column column = new Column(alias.equals("") ? columnName : alias);
-                            column.setSourceColumns(ColumnQualifierTuple.create(sourceColumnName, null));
-                            columns.add(column);
-                        }
-                    }
-                }
+                handleBooleanExpression(booleanExpressionContext, alias);
             }
         }
 
@@ -254,6 +212,63 @@ public class LineageAnalyzer {
                 case "drop":
                     drop.add(String.join(".", unquotedParts));
                     break;
+            }
+        }
+
+        private void handleBooleanExpression(SqlBaseParser.BooleanExpressionContext booleanExpressionContext, String alias) {
+            if (booleanExpressionContext instanceof SqlBaseParser.PredicatedContext) {
+                SqlBaseParser.PredicatedContext predicatedContext = (SqlBaseParser.PredicatedContext) booleanExpressionContext;
+                SqlBaseParser.ValueExpressionContext valueExpressionContext = predicatedContext.valueExpression();
+                handleValueExpression(valueExpressionContext, alias);
+            } else if (booleanExpressionContext instanceof SqlBaseParser.LogicalBinaryContext) {
+                SqlBaseParser.LogicalBinaryContext logicalBinaryContext = (SqlBaseParser.LogicalBinaryContext) booleanExpressionContext;
+                for (SqlBaseParser.BooleanExpressionContext subBooleanExpressionContext : logicalBinaryContext.booleanExpression()) {
+                    handleBooleanExpression(subBooleanExpressionContext, alias);
+                }
+            }
+        }
+
+        private void handleValueExpression(SqlBaseParser.ValueExpressionContext valueExpressionContext, String alias) {
+            if (valueExpressionContext instanceof SqlBaseParser.ValueExpressionDefaultContext) {
+                SqlBaseParser.ValueExpressionDefaultContext valueExpressionDefaultContext = (SqlBaseParser.ValueExpressionDefaultContext) valueExpressionContext;
+                SqlBaseParser.PrimaryExpressionContext primaryExpressionContext = valueExpressionDefaultContext.primaryExpression();
+                if (primaryExpressionContext instanceof SqlBaseParser.ColumnReferenceContext) {
+                    SqlBaseParser.ColumnReferenceContext columnReferenceContext = (SqlBaseParser.ColumnReferenceContext) primaryExpressionContext;
+                    String columnName = columnReferenceContext.getText();
+                    Column column = new Column(alias.equals("") ? columnName : alias);
+                    column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
+                    columns.add(column);
+                } else if (primaryExpressionContext instanceof SqlBaseParser.DereferenceContext) {
+                    SqlBaseParser.DereferenceContext dereferenceContext = (SqlBaseParser.DereferenceContext) primaryExpressionContext;
+                    String columnName = dereferenceContext.identifier().strictIdentifier().getText();
+                    Column column = new Column(alias.equals("") ? columnName : alias);
+                    column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
+                    columns.add(column);
+                } else if (primaryExpressionContext instanceof SqlBaseParser.StarContext) {
+                    SqlBaseParser.StarContext starContext = (SqlBaseParser.StarContext) primaryExpressionContext;
+                    String columnName = starContext.ASTERISK().getText();
+                    Column column = new Column(alias.equals("") ? columnName : alias);
+                    column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
+                    columns.add(column);
+                } else if (primaryExpressionContext instanceof SqlBaseParser.FunctionCallContext) {
+                    SqlBaseParser.FunctionCallContext functionCallContext = (SqlBaseParser.FunctionCallContext) primaryExpressionContext;
+                    for (SqlBaseParser.ExpressionContext expressionContext : functionCallContext.expression()) {
+                        handleBooleanExpression(expressionContext.booleanExpression(), alias.equals("") ? functionCallContext.getText() : alias);
+                    }
+                } else if (primaryExpressionContext instanceof SqlBaseParser.CastContext) {
+                    SqlBaseParser.CastContext castContext = (SqlBaseParser.CastContext) primaryExpressionContext;
+                    String sourceColumnName = castContext.expression().getText();
+                    String castType = castContext.dataType().getText();
+                    String columnName = "CAST(" + sourceColumnName + " AS " + castType + ")";
+                    Column column = new Column(alias.equals("") ? columnName : alias);
+                    column.setSourceColumns(ColumnQualifierTuple.create(sourceColumnName, null));
+                    columns.add(column);
+                }
+            } else if (valueExpressionContext instanceof SqlBaseParser.ComparisonContext) {
+                SqlBaseParser.ComparisonContext comparisonContext = (SqlBaseParser.ComparisonContext) valueExpressionContext;
+                for (SqlBaseParser.ValueExpressionContext subValueExpressionContext : comparisonContext.valueExpression()) {
+                    handleValueExpression(subValueExpressionContext, alias);
+                }
             }
         }
 
