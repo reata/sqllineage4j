@@ -54,7 +54,7 @@ public class ColumnTest {
                         "       count(*)\n" +
                         "FROM tab2",
                 Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
-                        ColumnQualifierTuple.create("max(col1)", "tab1")),
+                                ColumnQualifierTuple.create("max(col1)", "tab1")),
                         Pair.with(ColumnQualifierTuple.create("*", "tab2"),
                                 ColumnQualifierTuple.create("count(*)", "tab1"))));
         assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
@@ -120,5 +120,60 @@ public class ColumnTest {
                         "FROM tab2",
                 Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
                         ColumnQualifierTuple.create("col2", "tab1"))));
+    }
+
+    @Test
+    public void testSelectColumnUsingExpression() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT col1 + col2\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col1 + col2", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("col1 + col2", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT col1 + col2 AS col3\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col3", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("col3", "tab1"))));
+    }
+
+    @Test
+    public void testSelectColumnUsingExpressionInParenthesis() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT (col1 + col2) AS col3\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col3", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("col3", "tab1"))));
+    }
+
+    @Test
+    public void testSelectColumnUsingBooleanExpressionInParenthesis() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT (col1 > 0 AND col2 > 0) AS col3\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col3", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("col3", "tab1"))));
+    }
+
+    @Test
+    public void testSelectColumnUsingExpressionWithTableQualifierWithoutColumnAlias() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT a.col1 + a.col2 + a.col3 + a.col4\n" +
+                        "FROM tab2 a",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("a.col1 + a.col2 + a.col3 + a.col4", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("a.col1 + a.col2 + a.col3 + a.col4", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col3", "tab2"),
+                                ColumnQualifierTuple.create("a.col1 + a.col2 + a.col3 + a.col4", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col4", "tab2"),
+                                ColumnQualifierTuple.create("a.col1 + a.col2 + a.col3 + a.col4", "tab1"))));
     }
 }

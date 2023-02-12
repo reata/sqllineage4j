@@ -6,6 +6,9 @@ import io.github.reata.sqllineage4j.common.model.Table;
 import io.github.reata.sqllineage4j.core.holder.StatementLineageHolder;
 import io.github.reata.sqllineage4j.parser.SqlBaseBaseListener;
 import io.github.reata.sqllineage4j.parser.SqlBaseParser;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.misc.Interval;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.javatuples.Pair;
@@ -63,6 +66,11 @@ public class LineageAnalyzer {
 
         public Set<Pair<Column, Column>> getColumnLineage() {
             return columnLineage;
+        }
+
+        private String getOriginalText(ParserRuleContext parserRuleContext) {
+            CharStream stream = parserRuleContext.start.getInputStream();
+            return stream.getText(new Interval(parserRuleContext.start.getStartIndex(), parserRuleContext.stop.getStopIndex()));
         }
 
         @Override
@@ -270,15 +278,22 @@ public class LineageAnalyzer {
                 } else if (primaryExpressionContext instanceof SqlBaseParser.CastContext) {
                     SqlBaseParser.CastContext castContext = (SqlBaseParser.CastContext) primaryExpressionContext;
                     String sourceColumnName = castContext.expression().getText();
-                    String castType = castContext.dataType().getText();
-                    String columnName = "CAST(" + sourceColumnName + " AS " + castType + ")";
-                    Column column = new Column(alias.equals("") ? columnName : alias);
+                    Column column = new Column(alias.equals("") ? getOriginalText(castContext) : alias);
                     column.setSourceColumns(ColumnQualifierTuple.create(sourceColumnName, null));
                     columns.add(column);
+                } else if (primaryExpressionContext instanceof SqlBaseParser.ParenthesizedExpressionContext) {
+                    SqlBaseParser.ParenthesizedExpressionContext parenthesizedExpressionContext = (SqlBaseParser.ParenthesizedExpressionContext) primaryExpressionContext;
+                    handleBooleanExpression(parenthesizedExpressionContext.expression().booleanExpression(), alias);
                 }
             } else if (valueExpressionContext instanceof SqlBaseParser.ComparisonContext) {
                 SqlBaseParser.ComparisonContext comparisonContext = (SqlBaseParser.ComparisonContext) valueExpressionContext;
                 for (SqlBaseParser.ValueExpressionContext subValueExpressionContext : comparisonContext.valueExpression()) {
+                    handleValueExpression(subValueExpressionContext, alias);
+                }
+            } else if (valueExpressionContext instanceof SqlBaseParser.ArithmeticBinaryContext) {
+                SqlBaseParser.ArithmeticBinaryContext arithmeticBinaryContext = (SqlBaseParser.ArithmeticBinaryContext) valueExpressionContext;
+                alias = alias.equals("") ? getOriginalText(arithmeticBinaryContext) : alias;
+                for (SqlBaseParser.ValueExpressionContext subValueExpressionContext : arithmeticBinaryContext.valueExpression()) {
                     handleValueExpression(subValueExpressionContext, alias);
                 }
             }
