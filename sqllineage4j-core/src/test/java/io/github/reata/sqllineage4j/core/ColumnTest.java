@@ -79,6 +79,36 @@ public class ColumnTest {
     }
 
     @Test
+    public void testSelectColumnUsingWindowFunction() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT row_number() OVER (PARTITION BY col1 ORDER BY col2 DESC) AS rnum\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("rnum", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("rnum", "tab1"))));
+    }
+
+    @Test
+    public void testSelectColumnUsingWindowFunctionWithParameters() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT col0,\n" +
+                        "       max(col3) OVER (PARTITION BY col1 ORDER BY col2 DESC) AS rnum,\n" +
+                        "       col4\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col0", "tab2"),
+                                ColumnQualifierTuple.create("col0", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("rnum", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("rnum", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col3", "tab2"),
+                                ColumnQualifierTuple.create("rnum", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col4", "tab2"),
+                                ColumnQualifierTuple.create("col4", "tab1"))));
+    }
+
+    @Test
     public void testSelectColumnUsingCast() {
         assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
                         "SELECT cast(col1 as timestamp)\n" +

@@ -255,6 +255,18 @@ public class LineageAnalyzer {
                     for (SqlBaseParser.ExpressionContext expressionContext : functionCallContext.expression()) {
                         handleBooleanExpression(expressionContext.booleanExpression(), alias.equals("") ? functionCallContext.getText() : alias);
                     }
+                    if (functionCallContext.windowSpec() != null) {
+                        SqlBaseParser.WindowSpecContext windowSpecContext = functionCallContext.windowSpec();
+                        if (windowSpecContext instanceof SqlBaseParser.WindowDefContext) {
+                            SqlBaseParser.WindowDefContext windowDefContext = (SqlBaseParser.WindowDefContext) windowSpecContext;
+                            for (SqlBaseParser.ExpressionContext expressionContext : windowDefContext.expression()) {
+                                handleBooleanExpression(expressionContext.booleanExpression(), alias.equals("") ? functionCallContext.getText() : alias);
+                            }
+                            for (SqlBaseParser.SortItemContext sortItemContext : windowDefContext.sortItem()) {
+                                handleBooleanExpression(sortItemContext.expression().booleanExpression(), alias.equals("") ? functionCallContext.getText() : alias);
+                            }
+                        }
+                    }
                 } else if (primaryExpressionContext instanceof SqlBaseParser.CastContext) {
                     SqlBaseParser.CastContext castContext = (SqlBaseParser.CastContext) primaryExpressionContext;
                     String sourceColumnName = castContext.expression().getText();
