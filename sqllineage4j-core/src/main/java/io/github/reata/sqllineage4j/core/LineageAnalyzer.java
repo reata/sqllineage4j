@@ -286,10 +286,14 @@ public class LineageAnalyzer {
                     handleBooleanExpression(parenthesizedExpressionContext.expression().booleanExpression(), alias);
                 } else if (primaryExpressionContext instanceof SqlBaseParser.SearchedCaseContext) {
                     SqlBaseParser.SearchedCaseContext searchedCaseContext = (SqlBaseParser.SearchedCaseContext) primaryExpressionContext;
+                    alias = alias.equals("") ? getOriginalText(searchedCaseContext) : alias;
                     for (SqlBaseParser.WhenClauseContext whenClauseContext : searchedCaseContext.whenClause()) {
                         for (SqlBaseParser.ExpressionContext expressionContext : whenClauseContext.expression()) {
-                            handleBooleanExpression(expressionContext.booleanExpression(), alias.equals("") ? getOriginalText(searchedCaseContext) : alias);
+                            handleBooleanExpression(expressionContext.booleanExpression(), alias);
                         }
+                    }
+                    if (searchedCaseContext.expression() != null) {
+                        handleBooleanExpression(searchedCaseContext.expression().booleanExpression(), alias);
                     }
                 }
             } else if (valueExpressionContext instanceof SqlBaseParser.ComparisonContext) {

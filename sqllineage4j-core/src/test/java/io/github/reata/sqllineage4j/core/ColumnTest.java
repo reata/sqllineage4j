@@ -189,6 +189,20 @@ public class ColumnTest {
                         "FROM tab2",
                 Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
                         ColumnQualifierTuple.create("col2", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT CASE WHEN col1 = 1 THEN 'V1' WHEN col1 = 2 THEN 'V2' ELSE col_v END\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("CASE WHEN col1 = 1 THEN 'V1' WHEN col1 = 2 THEN 'V2' ELSE col_v END", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col_v", "tab2"),
+                                ColumnQualifierTuple.create("CASE WHEN col1 = 1 THEN 'V1' WHEN col1 = 2 THEN 'V2' ELSE col_v END", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT CASE WHEN col1 = 1 THEN 'V1' WHEN col1 = 2 THEN 'V2' ELSE col_v END AS col2\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col2", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col_v", "tab2"),
+                                ColumnQualifierTuple.create("col2", "tab1"))));
     }
 
 //    @Test
