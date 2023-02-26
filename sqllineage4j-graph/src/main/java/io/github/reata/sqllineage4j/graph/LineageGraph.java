@@ -38,4 +38,8 @@ public interface LineageGraph {
     void dropSelfLoopEdge();
 
     LineageGraph getSubGraph(String label);
+
+    void merge(LineageGraph other);
+
+    List<List<Object>> listPath(Object source, Object target);
 }

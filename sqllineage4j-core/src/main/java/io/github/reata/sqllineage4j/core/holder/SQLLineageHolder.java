@@ -8,6 +8,8 @@ import io.github.reata.sqllineage4j.graph.LineageGraph;
 import org.javatuples.Pair;
 
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -48,11 +50,25 @@ public class SQLLineageHolder {
         return intermediateTables;
     }
 
-    public Set<Pair<Column, Column>> getColumnLineage(boolean excludeSubquery) {
+    public Set<List<Column>> getColumnLineage(boolean excludeSubquery) {
         LineageGraph columnLineageGraph = getColumnLineageGraph();
-        return columnLineageGraph.retrieveEdgesByLabel("lineage")
-                .stream().map(x -> Pair.with((Column) x.source(), (Column) x.target()))
-                .collect(Collectors.toSet());
+        Set<Column> targetColumns = columnLineageGraph.retrieveTargetOnlyVertices()
+                .stream().map(Column.class::cast).collect(Collectors.toSet());
+        Set<Column> sourceColumns = columnLineageGraph.retrieveSourceOnlyVertices()
+                .stream().map(Column.class::cast).collect(Collectors.toSet());
+        if (excludeSubquery) {
+            targetColumns = targetColumns.stream().filter(c -> c.getParent() instanceof Table).collect(Collectors.toSet());
+        }
+
+        Set<List<Column>> columns = new HashSet<>();
+        for (Column sourceColumn : sourceColumns) {
+            for (Column targetColumn : targetColumns) {
+                columnLineageGraph.listPath(sourceColumn, targetColumn).forEach(
+                        path -> columns.add(path.stream().map(c -> (Column) c).collect(Collectors.toList()))
+                );
+            }
+        }
+        return columns;
     }
 
     private LineageGraph getTableLineageGraph() {
@@ -76,7 +92,7 @@ public class SQLLineageHolder {
     private static LineageGraph buildDiGraph(StatementLineageHolder... statementLineageHolders) {
         LineageGraph lineageGraph = new GremlinLineageGraph();
         for (StatementLineageHolder holder : statementLineageHolders) {
-            compose(lineageGraph, holder.getGraph());
+            lineageGraph.merge(holder.getGraph());
             if (holder.getDrop().size() > 0) {
                 lineageGraph.dropVerticesIfOrphan(holder.getDrop().toArray());
             } else if (holder.getRename().size() > 0) {
@@ -115,14 +131,5 @@ public class SQLLineageHolder {
         lineageGraph.updateVertices(Collections.singletonMap("selfloop", Boolean.TRUE),
                 lineageGraph.retrieveSelfLoopVertices().stream().filter(x -> x instanceof Table).toArray());
         return lineageGraph;
-    }
-
-    private static void compose(LineageGraph a, LineageGraph b) {
-        for (Object vertex : b.retrieveVerticesByProps(Collections.emptyMap())) {
-            a.addVertexIfNotExist(vertex);
-        }
-        for (EdgeTuple edgeTuple : b.retrieveEdgesByProps(Collections.emptyMap())) {
-            a.addEdgeIfNotExist(edgeTuple.label(), edgeTuple.source(), edgeTuple.target());
-        }
     }
 }

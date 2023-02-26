@@ -9,7 +9,7 @@ import static io.github.reata.sqllineage4j.common.utils.Helper.escapeIdentifierN
 
 
 public class Column {
-    private final Set<Table> parent = new HashSet<>();
+    private final Set<DataSet> parent = new HashSet<>();
     private final String rawName;
     private final List<ColumnQualifierTuple> sourceColumns = new ArrayList<>();
 
@@ -36,11 +36,11 @@ public class Column {
         return Objects.hash(this.toString());
     }
 
-    public @Nullable Table getParent() {
+    public @Nullable DataSet getParent() {
         return parent.size() == 1 ? List.copyOf(parent).get(0) : null;
     }
 
-    public void setParent(Table table) {
+    public void setParent(DataSet table) {
         parent.add(table);
     }
 
@@ -48,21 +48,21 @@ public class Column {
         sourceColumns.add(cqt);
     }
 
-    public List<Column> toSourceColumns(Map<String, Table> aliasMapping) {
+    public List<Column> toSourceColumns(Map<String, DataSet> aliasMapping) {
         List<Column> result = new ArrayList<>();
         for (ColumnQualifierTuple columnQualifierTuple : sourceColumns) {
             if (columnQualifierTuple.qualifier() == null) {
                 Column source = new Column(columnQualifierTuple.column());
                 if (columnQualifierTuple.column().equals("*")) {
                     // SELECT *
-                    for (Table table : aliasMapping.values()) {
-                        result.add(toSourceColumn(columnQualifierTuple.column(), table));
+                    for (DataSet dataSet : aliasMapping.values()) {
+                        result.add(toSourceColumn(columnQualifierTuple.column(), dataSet));
                     }
                 } else {
-                    for (Table table : aliasMapping.values()) {
+                    for (DataSet dataSet : aliasMapping.values()) {
                         // in case of only one table, we get the right answer
                         // in case of multiple tables, a bunch of possible tables are set
-                        source.setParent(table);
+                        source.setParent(dataSet);
                     }
                     result.add(source);
                 }
@@ -73,7 +73,7 @@ public class Column {
         return result;
     }
 
-    private Column toSourceColumn(String columnName, Table parent) {
+    private Column toSourceColumn(String columnName, DataSet parent) {
         Column col = new Column(columnName);
         if (parent != null) {
             col.setParent(parent);

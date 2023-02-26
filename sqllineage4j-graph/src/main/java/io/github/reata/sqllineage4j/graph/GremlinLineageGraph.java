@@ -2,20 +2,22 @@ package io.github.reata.sqllineage4j.graph;
 
 import io.github.reata.sqllineage4j.common.entity.EdgeTuple;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class GremlinLineageGraph implements LineageGraph {
     private final GraphTraversalSource g;
+
+//    public GraphTraversalSource getG() {
+//        return g;
+//    }
 
     public GremlinLineageGraph() {
         this.g = TinkerGraph.open().traversal();
@@ -134,5 +136,38 @@ public class GremlinLineageGraph implements LineageGraph {
     public GremlinLineageGraph getSubGraph(String label) {
         return new GremlinLineageGraph((Graph) g.E().where(__.inV().hasLabel(label)).where(__.outV().hasLabel(label))
                 .subgraph("sg").cap("sg").next());
+    }
+
+    public void merge(LineageGraph other) {
+        GremlinLineageGraph graph = (GremlinLineageGraph) other;
+        for (Object vertex : other.retrieveVerticesByProps(Collections.emptyMap())) {
+            addVertexIfNotExist(vertex);
+        }
+        for (Property<Object> p : graph.g.V().properties().toList()) {
+            if (!p.key().equals("obj")) {
+                g.V().hasId(p.element().id()).property(p.key(), p.value()).iterate();
+            }
+        }
+        for (EdgeTuple edgeTuple : other.retrieveEdgesByProps(Collections.emptyMap())) {
+            addEdgeIfNotExist(edgeTuple.label(), edgeTuple.source(), edgeTuple.target());
+        }
+    }
+
+    public List<List<Object>> listPath(Object source, Object target) {
+        List<List<Object>> result = new ArrayList<>();
+        for (Path path : g.V().hasLabel(source.getClass().getSimpleName()).hasId(source.hashCode())
+                .repeat(__.out().simplePath())
+                .until(__.hasLabel(target.getClass().getSimpleName()).hasId(target.hashCode()))
+                .path().toList()) {
+            List<Object> singlePath = new ArrayList<>();
+            for (Object x : path) {
+                if (x instanceof Vertex) {
+                    Vertex v = (Vertex) x;
+                    singlePath.add(g.V().hasId(v.id()).values("obj").toList().get(0));
+                }
+            }
+            result.add(singlePath);
+        }
+        return result;
     }
 }

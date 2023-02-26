@@ -215,4 +215,52 @@ public class ColumnTest {
 //                        Pair.with(ColumnQualifierTuple.create("col1", "tab3"),
 //                                ColumnQualifierTuple.create("col1", "tab1"))));
 //    }
+
+    @Test
+    public void testSelectColumnWithTableQualifier() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT tab2.col1\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("col1", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT t.col1\n" +
+                        "FROM tab2 AS t",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("col1", "tab1"))));
+    }
+
+    @Test
+    public void testSelectColumns() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT col1,\n" +
+                        "col2\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("col1", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("col2", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT max(col1),\n" +
+                        "max(col2)\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("max(col1)", "tab1")),
+                        Pair.with(ColumnQualifierTuple.create("col2", "tab2"),
+                                ColumnQualifierTuple.create("max(col2)", "tab1"))));
+    }
+
+    @Test
+    public void testSelectColumnInSubquery() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT col1\n" +
+                        "FROM (SELECT col1 FROM tab2) dt",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col1", "tab1"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab1\n" +
+                        "SELECT col1\n" +
+                        "FROM (SELECT col1, col2 FROM tab2) dt",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                        ColumnQualifierTuple.create("col1", "tab1"))));
+    }
 }

@@ -4,7 +4,7 @@ import java.util.Objects;
 
 import static io.github.reata.sqllineage4j.common.utils.Helper.escapeIdentifierName;
 
-public final class Table {
+public final class Table implements DataSet {
     private final String rawName;
     private Schema schema = new Schema();
 

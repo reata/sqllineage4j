@@ -66,7 +66,9 @@ public class LineageRunner {
     }
 
     public List<Pair<Column, Column>> getColumnLineage(boolean excludeSubquery) {
-        return List.copyOf(sqlLineageHolder.getColumnLineage(excludeSubquery));
+        return sqlLineageHolder.getColumnLineage(excludeSubquery)
+                .stream().map(path -> Pair.with(path.get(0), path.get(path.size() - 1)))
+                .collect(Collectors.toList());
     }
 
     public void printTableLineage() {
