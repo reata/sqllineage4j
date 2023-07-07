@@ -297,10 +297,7 @@ public class LineageAnalyzer {
                     }
                 } else if (primaryExpressionContext instanceof SqlBaseParser.CastContext) {
                     SqlBaseParser.CastContext castContext = (SqlBaseParser.CastContext) primaryExpressionContext;
-                    String sourceColumnName = castContext.expression().getText();
-                    Column column = new Column(alias.equals("") ? getOriginalText(castContext) : alias);
-                    column.setSourceColumns(ColumnQualifierTuple.create(sourceColumnName, null));
-                    selectColumns.add(column);
+                    handleBooleanExpression(castContext.expression().booleanExpression(), alias.equals("") ? getOriginalText(castContext) : alias);
                 } else if (primaryExpressionContext instanceof SqlBaseParser.ParenthesizedExpressionContext) {
                     SqlBaseParser.ParenthesizedExpressionContext parenthesizedExpressionContext = (SqlBaseParser.ParenthesizedExpressionContext) primaryExpressionContext;
                     handleBooleanExpression(parenthesizedExpressionContext.expression().booleanExpression(), alias);
