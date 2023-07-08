@@ -502,4 +502,107 @@ public class ColumnTest {
                         Pair.with(ColumnQualifierTuple.create("b", "tab1"),
                                 ColumnQualifierTuple.create("b_cnt", "tab2"))));
     }
+
+    @Test
+    public void testColumnReferenceWithAnsi89Join() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab3\n" +
+                        "SELECT a.id,\n" +
+                        "       a.name AS name1,\n" +
+                        "       b.name AS name2\n" +
+                        "FROM (SELECT id, name\n" +
+                        "      FROM tab1) a,\n" +
+                        "     (SELECT id, name\n" +
+                        "      FROM tab2) b\n" +
+                        "WHERE a.id = b.id",
+                Set.of(Pair.with(ColumnQualifierTuple.create("id", "tab1"),
+                                ColumnQualifierTuple.create("id", "tab3")),
+                        Pair.with(ColumnQualifierTuple.create("name", "tab1"),
+                                ColumnQualifierTuple.create("name1", "tab3")),
+                        Pair.with(ColumnQualifierTuple.create("name", "tab2"),
+                                ColumnQualifierTuple.create("name2", "tab3"))));
+    }
+
+//    @Test
+//    public void testSmarterColumnResolutionUsingQueryContext() {
+//        assertColumnLineage("WITH\n" +
+//                        "cte1 AS (SELECT a, b FROM tab1),\n" +
+//                        "cte2 AS (SELECT c, d FROM tab2)\n" +
+//                        "INSERT OVERWRITE TABLE tab3\n" +
+//                        "SELECT b, d FROM cte1 JOIN cte2\n" +
+//                        "WHERE cte1.a = cte2.c",
+//                Set.of(Pair.with(ColumnQualifierTuple.create("b", "tab1"),
+//                                ColumnQualifierTuple.create("b", "tab3")),
+//                        Pair.with(ColumnQualifierTuple.create("d", "tab2"),
+//                                ColumnQualifierTuple.create("d", "tab3"))));
+//    }
+
+    @Test
+    public void testColumnReferenceUsingUnion() {
+        assertColumnLineage("INSERT OVERWRITE TABLE tab3\n" +
+                        "SELECT col1\n" +
+                        "FROM tab1\n" +
+                        "UNION ALL\n" +
+                        "SELECT col1\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab1"),
+                                ColumnQualifierTuple.create("col1", "tab3")),
+                        Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col1", "tab3"))));
+        assertColumnLineage("INSERT OVERWRITE TABLE tab3\n" +
+                        "SELECT col1\n" +
+                        "FROM tab1\n" +
+                        "UNION\n" +
+                        "SELECT col1\n" +
+                        "FROM tab2",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab1"),
+                                ColumnQualifierTuple.create("col1", "tab3")),
+                        Pair.with(ColumnQualifierTuple.create("col1", "tab2"),
+                                ColumnQualifierTuple.create("col1", "tab3"))));
+    }
+
+//    @Test
+//    public void testColumnLineageMultiplePathsForSameColumn() {
+//        assertColumnLineage("INSERT OVERWRITE TABLE tab2\n" +
+//                        "SELECT tab1.id,\n" +
+//                        "       coalesce(join_table_1.col1, join_table_2.col1, join_table_3.col1) AS col1\n" +
+//                        "FROM tab1\n" +
+//                        "         LEFT JOIN (SELECT id, col1 FROM tab1 WHERE flag = 1) AS join_table_1\n" +
+//                        "                   ON tab1.id = join_table_1.id\n" +
+//                        "         LEFT JOIN (SELECT id, col1 FROM tab1 WHERE flag = 2) AS join_table_2\n" +
+//                        "                   ON tab1.id = join_table_2.id\n" +
+//                        "         LEFT JOIN (SELECT id, col1 FROM tab1 WHERE flag = 3) AS join_table_3\n" +
+//                        "                   ON tab1.id = join_table_3.id",
+//                Set.of(Pair.with(ColumnQualifierTuple.create("id", "tab1"),
+//                                ColumnQualifierTuple.create("id", "tab2")),
+//                        Pair.with(ColumnQualifierTuple.create("col1", "tab1"),
+//                                ColumnQualifierTuple.create("col1", "tab2"))));
+//    }
+
+//    @ParameterizedTest
+//    @ValueSource(strings = {"string", "timestamp", "date", "datetime", "decimal(18, 0)"})
+//    public void testColumnTryCastWithFunc(String func) {
+//        assertColumnLineage("INSERT OVERWRITE TABLE tab2\n" +
+//                        "SELECT try_cast(" + func + ") AS col2\n" +
+//                        "FROM tab1",
+//                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab1"),
+//                                ColumnQualifierTuple.create("col1", "tab2"))));
+//    }
+
+    @Test
+    public void testColumnWithCtasAndFunc() {
+        assertColumnLineage("CREATE TABLE tab2 AS\n" +
+                        "SELECT\n" +
+                        "  coalesce(col1, 0) AS col1,\n" +
+                        "  IF(\n" +
+                        "    col1 IS NOT NULL,\n" +
+                        "    1,\n" +
+                        "    NULL\n" +
+                        "  ) AS col2\n" +
+                        "FROM\n" +
+                        "  tab1",
+                Set.of(Pair.with(ColumnQualifierTuple.create("col1", "tab1"),
+                                ColumnQualifierTuple.create("col1", "tab2")),
+                        Pair.with(ColumnQualifierTuple.create("col1", "tab1"),
+                                ColumnQualifierTuple.create("col2", "tab2"))));
+    }
 }
