@@ -1,6 +1,6 @@
 package io.github.reata.sqllineage4j.common.model;
 
-public final class SubQuery implements DataSet {
+public final class SubQuery implements QuerySet {
     private final String query;
     private final String alias;
 

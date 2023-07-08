@@ -1,8 +1,10 @@
 package io.github.reata.sqllineage4j.core.holder;
 
+import io.github.reata.sqllineage4j.common.entity.EdgeTuple;
 import io.github.reata.sqllineage4j.common.model.Column;
-import io.github.reata.sqllineage4j.common.model.DataSet;
+import io.github.reata.sqllineage4j.common.model.QuerySet;
 import io.github.reata.sqllineage4j.common.model.SubQuery;
+import io.github.reata.sqllineage4j.common.model.Table;
 import io.github.reata.sqllineage4j.graph.GremlinLineageGraph;
 import io.github.reata.sqllineage4j.graph.LineageGraph;
 
@@ -16,20 +18,20 @@ public class SubQueryLineageHolder {
         return lineageGraph;
     }
 
-    void propertySetter(DataSet value, String prop) {
+    void propertySetter(QuerySet value, String prop) {
         lineageGraph.addVertexIfNotExist(value, Collections.singletonMap(prop, Boolean.TRUE));
     }
 
-    Set<DataSet> propertyGetter(String prop) {
+    Set<QuerySet> propertyGetter(String prop) {
         return lineageGraph.retrieveVerticesByProps(Collections.singletonMap(prop, true))
-                .stream().map(x -> (DataSet) x).collect(Collectors.toSet());
+                .stream().map(x -> (QuerySet) x).collect(Collectors.toSet());
     }
 
-    public Set<? extends DataSet> getRead() {
+    public Set<? extends QuerySet> getRead() {
         return propertyGetter("read");
     }
 
-    public Set<? extends DataSet> getWrite() {
+    public Set<? extends QuerySet> getWrite() {
         return propertyGetter("write");
     }
 
@@ -37,11 +39,15 @@ public class SubQueryLineageHolder {
         return propertyGetter("cte").stream().map(x -> (SubQuery) x).collect(Collectors.toSet());
     }
 
-    public void addRead(DataSet read) {
+    public void addRead(QuerySet read) {
         propertySetter(read, "read");
+        if (read.getAlias() != null) {
+            lineageGraph.addVertexIfNotExist(read.getAlias());
+            lineageGraph.addEdgeIfNotExist("has_alias", read, read.getAlias());
+        }
     }
 
-    public void addWrite(DataSet write) {
+    public void addWrite(QuerySet write) {
         propertySetter(write, "write");
     }
 
@@ -70,5 +76,13 @@ public class SubQueryLineageHolder {
 
     public List<Column> getSelectColumns() {
         return selectColumns;
+    }
+
+    public Map<String, QuerySet> getQuerySetAlias() {
+        Map<String, QuerySet> aliasMapping = new HashMap<>();
+        for (EdgeTuple edgeTuple : lineageGraph.retrieveEdgesByLabel("has_alias")) {
+            aliasMapping.put((String) edgeTuple.target(), (QuerySet) edgeTuple.source());
+        }
+        return aliasMapping;
     }
 }

@@ -4,11 +4,17 @@ import java.util.Objects;
 
 import static io.github.reata.sqllineage4j.common.utils.Helper.escapeIdentifierName;
 
-public final class Table implements DataSet {
+public final class Table implements QuerySet {
     private final String rawName;
+
+    private final String alias;
     private Schema schema = new Schema();
 
     public Table(String name) {
+        this(name, name);
+    }
+
+    public Table(String name, String alias) {
         if (name.contains(".")) {
             int pos = name.lastIndexOf(".");
             String schemaName = name.substring(0, pos + 1);
@@ -18,6 +24,7 @@ public final class Table implements DataSet {
         } else {
             this.rawName = escapeIdentifierName(name);
         }
+        this.alias = alias;
     }
 
     @Override
@@ -33,5 +40,10 @@ public final class Table implements DataSet {
     @Override
     public int hashCode() {
         return Objects.hash(this.toString());
+    }
+
+    @Override
+    public String getAlias() {
+        return alias;
     }
 }

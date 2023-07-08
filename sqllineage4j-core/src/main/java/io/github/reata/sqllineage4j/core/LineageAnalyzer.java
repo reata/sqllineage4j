@@ -2,7 +2,7 @@ package io.github.reata.sqllineage4j.core;
 
 import io.github.reata.sqllineage4j.common.entity.ColumnQualifierTuple;
 import io.github.reata.sqllineage4j.common.model.Column;
-import io.github.reata.sqllineage4j.common.model.DataSet;
+import io.github.reata.sqllineage4j.common.model.QuerySet;
 import io.github.reata.sqllineage4j.common.model.SubQuery;
 import io.github.reata.sqllineage4j.common.model.Table;
 import io.github.reata.sqllineage4j.core.holder.StatementLineageHolder;
@@ -82,12 +82,12 @@ public class LineageAnalyzer {
 
         @Override
         public void enterUpdateTable(SqlBaseParser.UpdateTableContext ctx) {
-            handleMultipartIdentifier(ctx.multipartIdentifier(), "write");
+            handleMultipartIdentifier(ctx.multipartIdentifier(), "write", null);
         }
 
         @Override
         public void enterDropTable(SqlBaseParser.DropTableContext ctx) {
-            handleMultipartIdentifier(ctx.multipartIdentifier(), "drop");
+            handleMultipartIdentifier(ctx.multipartIdentifier(), "drop", null);
         }
 
         @Override
@@ -153,14 +153,14 @@ public class LineageAnalyzer {
         @Override
         public void exitRegularQuerySpecification(SqlBaseParser.RegularQuerySpecificationContext ctx) {
             SubQueryLineageHolder holder = subQueryLineageHolders.get(ctx.hashCode());
-            DataSet tgtTbl = null;
+            QuerySet tgtTbl = null;
             if (holder.getWrite().size() == 1) {
                 tgtTbl = List.copyOf(holder.getWrite()).get(0);
             }
             if (tgtTbl != null) {
                 for (Column tgtCol : holder.getSelectColumns()) {
                     tgtCol.setParent(tgtTbl);
-                    Map<String, DataSet> aliasMapping = getAliasMappingFromTableGroup(holder);
+                    Map<String, QuerySet> aliasMapping = getAliasMappingFromTableGroup(holder);
                     for (Column srcCol : tgtCol.toSourceColumns(aliasMapping)) {
                         holder.addColumnLineage(srcCol, tgtCol);
                     }
@@ -201,7 +201,11 @@ public class LineageAnalyzer {
         private void handleRelationPrimary(SqlBaseParser.RelationPrimaryContext relationPrimaryContext) {
             if (relationPrimaryContext instanceof SqlBaseParser.TableNameContext) {
                 SqlBaseParser.TableNameContext tableNameContext = (SqlBaseParser.TableNameContext) relationPrimaryContext;
-                handleMultipartIdentifier(tableNameContext.multipartIdentifier(), "read");
+                String alias = null;
+                if (tableNameContext.tableAlias().strictIdentifier() != null) {
+                    alias = getOriginalText(tableNameContext.tableAlias().strictIdentifier());
+                }
+                handleMultipartIdentifier(tableNameContext.multipartIdentifier(), "read", alias);
             } else if (relationPrimaryContext instanceof SqlBaseParser.AliasedRelationContext) {
                 SqlBaseParser.AliasedRelationContext aliasedRelationContext = (SqlBaseParser.AliasedRelationContext) relationPrimaryContext;
                 handleRelationPrimary(aliasedRelationContext.relation().relationPrimary());
@@ -212,7 +216,7 @@ public class LineageAnalyzer {
             }
         }
 
-        private void handleMultipartIdentifier(SqlBaseParser.MultipartIdentifierContext multipartIdentifierContext, String type) {
+        private void handleMultipartIdentifier(SqlBaseParser.MultipartIdentifierContext multipartIdentifierContext, String type, String alias) {
             SubQueryLineageHolder holder = getHolder(multipartIdentifierContext);
             List<String> unquotedParts = new ArrayList<>();
             for (SqlBaseParser.ErrorCapturingIdentifierContext errorCapturingIdentifierContext : multipartIdentifierContext.errorCapturingIdentifier()) {
@@ -222,12 +226,16 @@ public class LineageAnalyzer {
                 }
             }
             String rawName = String.join(".", unquotedParts);
-            Table table = new Table(rawName);
+            Table table = alias == null ? new Table(rawName) : new Table(rawName, alias);
             switch (type) {
                 case "read":
                     Map<String, SubQuery> cteMap = statementLineageHolder.getCTE().stream().collect(Collectors.toMap(SubQuery::getAlias, Function.identity()));
                     if (cteMap.containsKey(rawName)) {
-                        Objects.requireNonNull(holder).addRead(cteMap.get(rawName));
+                        SubQuery cte = cteMap.get(rawName);
+                        if (alias != null) {
+                            Objects.requireNonNull(holder).addRead(new SubQuery(cte.getQuery(), alias));
+                        }
+                        Objects.requireNonNull(holder).addRead(cte);
                     } else {
                         Objects.requireNonNull(holder).addRead(table);
                     }
@@ -270,7 +278,8 @@ public class LineageAnalyzer {
                     SqlBaseParser.DereferenceContext dereferenceContext = (SqlBaseParser.DereferenceContext) primaryExpressionContext;
                     String columnName = dereferenceContext.identifier().strictIdentifier().getText();
                     Column column = new Column(alias.equals("") ? columnName : alias);
-                    column.setSourceColumns(ColumnQualifierTuple.create(columnName, null));
+                    String qualifierName = dereferenceContext.primaryExpression().getText();
+                    column.setSourceColumns(ColumnQualifierTuple.create(columnName, qualifierName));
                     selectColumns.add(column);
                 } else if (primaryExpressionContext instanceof SqlBaseParser.StarContext) {
                     SqlBaseParser.StarContext starContext = (SqlBaseParser.StarContext) primaryExpressionContext;
@@ -340,10 +349,11 @@ public class LineageAnalyzer {
             return name;
         }
 
-        private Map<String, DataSet> getAliasMappingFromTableGroup(SubQueryLineageHolder holder) {
-            Map<String, DataSet> alias = new HashMap<>();
-            for (DataSet dataset : holder.getRead()) {
+        private Map<String, QuerySet> getAliasMappingFromTableGroup(SubQueryLineageHolder holder) {
+            Map<String, QuerySet> alias = holder.getQuerySetAlias();
+            for (QuerySet dataset : holder.getRead()) {
                 alias.put(dataset.toString(), dataset);
+                // TODO: rawName -> dataset
             }
             return alias;
         }
