@@ -30,6 +30,7 @@ public class InsertTest {
     @Test
     public void testInsertIntoWithColumnsAndSelectUnion() {
         assertTableLineage("INSERT INTO tab1 (col1, col2) SELECT * FROM tab2 UNION SELECT * FROM tab3", Set.of("tab2", "tab3"), Set.of("tab1"));
+        assertTableLineage("INSERT INTO tab1 (col1, col2) (SELECT * FROM tab2 UNION SELECT * FROM tab3)", Set.of("tab2", "tab3"), Set.of("tab1"));
     }
 
     @Test
@@ -65,5 +66,12 @@ public class InsertTest {
                 "SELECT tab2.col_a from tab_2\n" +
                 "JOIN tab_1\n" +
                 "ON tab_1.col_a = tab_2.cola", Set.of("tab_1", "tab_2"), Set.of("tab_1"));
+    }
+
+    @Test
+    public void testInsertIntoQualifiedTableWithParenthesizedQuery() {
+        assertTableLineage("INSERT INTO default.tab2\n" +
+                "    (SELECT *\n" +
+                "    FROM tab1)", Set.of("tab1"), Set.of("default.tab2"));
     }
 }
