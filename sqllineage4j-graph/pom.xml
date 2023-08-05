@@ -7,7 +7,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>sqllineage4j-graph</artifactId>
-    <name>Archetype - sqllineage4j-graph</name>
+    <name>sqllineage4j-graph</name>
 
     <dependencies>
         <dependency>

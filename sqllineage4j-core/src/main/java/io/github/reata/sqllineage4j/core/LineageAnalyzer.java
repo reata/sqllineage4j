@@ -1,5 +1,6 @@
 package io.github.reata.sqllineage4j.core;
 
+import io.github.reata.sqllineage4j.common.constant.NodeTag;
 import io.github.reata.sqllineage4j.common.entity.ColumnQualifierTuple;
 import io.github.reata.sqllineage4j.common.model.Column;
 import io.github.reata.sqllineage4j.common.model.QuerySet;
@@ -82,12 +83,12 @@ public class LineageAnalyzer {
 
         @Override
         public void enterUpdateTable(SqlBaseParser.UpdateTableContext ctx) {
-            handleMultipartIdentifier(ctx.multipartIdentifier(), "write", null);
+            handleMultipartIdentifier(ctx.multipartIdentifier(), NodeTag.WRITE, null);
         }
 
         @Override
         public void enterDropTable(SqlBaseParser.DropTableContext ctx) {
-            handleMultipartIdentifier(ctx.multipartIdentifier(), "drop", null);
+            handleMultipartIdentifier(ctx.multipartIdentifier(), NodeTag.DROP, null);
         }
 
         @Override
@@ -205,7 +206,7 @@ public class LineageAnalyzer {
                 if (tableNameContext.tableAlias().strictIdentifier() != null) {
                     alias = getOriginalText(tableNameContext.tableAlias().strictIdentifier());
                 }
-                handleMultipartIdentifier(tableNameContext.multipartIdentifier(), "read", alias);
+                handleMultipartIdentifier(tableNameContext.multipartIdentifier(), NodeTag.READ, alias);
             } else if (relationPrimaryContext instanceof SqlBaseParser.AliasedRelationContext) {
                 SqlBaseParser.AliasedRelationContext aliasedRelationContext = (SqlBaseParser.AliasedRelationContext) relationPrimaryContext;
                 handleRelationPrimary(aliasedRelationContext.relation().relationPrimary());
@@ -228,7 +229,7 @@ public class LineageAnalyzer {
             String rawName = String.join(".", unquotedParts);
             Table table = alias == null ? new Table(rawName) : new Table(rawName, alias);
             switch (type) {
-                case "read":
+                case NodeTag.READ:
                     Map<String, SubQuery> cteMap = statementLineageHolder.getCTE().stream().collect(Collectors.toMap(SubQuery::getAlias, Function.identity()));
                     if (cteMap.containsKey(rawName)) {
                         SubQuery cte = cteMap.get(rawName);
@@ -240,10 +241,10 @@ public class LineageAnalyzer {
                         Objects.requireNonNull(holder).addRead(table);
                     }
                     break;
-                case "write":
+                case NodeTag.WRITE:
                     Objects.requireNonNullElse(holder, statementLineageHolder).addWrite(table);
                     break;
-                case "drop":
+                case NodeTag.DROP:
                     statementLineageHolder.addDrop(table);
                     break;
             }

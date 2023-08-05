@@ -1,10 +1,11 @@
 package io.github.reata.sqllineage4j.core.holder;
 
+import io.github.reata.sqllineage4j.common.constant.EdgeType;
+import io.github.reata.sqllineage4j.common.constant.NodeTag;
 import io.github.reata.sqllineage4j.common.entity.EdgeTuple;
 import io.github.reata.sqllineage4j.common.model.Column;
 import io.github.reata.sqllineage4j.common.model.QuerySet;
 import io.github.reata.sqllineage4j.common.model.SubQuery;
-import io.github.reata.sqllineage4j.common.model.Table;
 import io.github.reata.sqllineage4j.graph.GremlinLineageGraph;
 import io.github.reata.sqllineage4j.graph.LineageGraph;
 
@@ -28,40 +29,40 @@ public class SubQueryLineageHolder {
     }
 
     public Set<? extends QuerySet> getRead() {
-        return propertyGetter("read");
+        return propertyGetter(NodeTag.READ);
     }
 
     public Set<? extends QuerySet> getWrite() {
-        return propertyGetter("write");
+        return propertyGetter(NodeTag.WRITE);
     }
 
     public Set<SubQuery> getCTE() {
-        return propertyGetter("cte").stream().map(x -> (SubQuery) x).collect(Collectors.toSet());
+        return propertyGetter(NodeTag.CTE).stream().map(x -> (SubQuery) x).collect(Collectors.toSet());
     }
 
     public void addRead(QuerySet read) {
-        propertySetter(read, "read");
+        propertySetter(read, NodeTag.READ);
         if (read.getAlias() != null) {
             lineageGraph.addVertexIfNotExist(read.getAlias());
-            lineageGraph.addEdgeIfNotExist("has_alias", read, read.getAlias());
+            lineageGraph.addEdgeIfNotExist(EdgeType.HAS_ALIAS, read, read.getAlias());
         }
     }
 
     public void addWrite(QuerySet write) {
-        propertySetter(write, "write");
+        propertySetter(write, NodeTag.WRITE);
     }
 
     public void addCTE(SubQuery cte) {
-        propertySetter(cte, "cte");
+        propertySetter(cte, NodeTag.CTE);
     }
 
     public void addColumnLineage(Column src, Column tgt) {
         lineageGraph.addVertexIfNotExist(src);
         lineageGraph.addVertexIfNotExist(tgt);
-        lineageGraph.addEdgeIfNotExist("lineage", src, tgt);
-        lineageGraph.addEdgeIfNotExist("has_column", Objects.requireNonNull(tgt.getParent()), tgt);
+        lineageGraph.addEdgeIfNotExist(EdgeType.LINEAGE, src, tgt);
+        lineageGraph.addEdgeIfNotExist(EdgeType.HAS_COLUMN, Objects.requireNonNull(tgt.getParent()), tgt);
         if (src.getParent() != null) {
-            lineageGraph.addEdgeIfNotExist("has_column", Objects.requireNonNull(src.getParent()), src);
+            lineageGraph.addEdgeIfNotExist(EdgeType.HAS_COLUMN, Objects.requireNonNull(src.getParent()), src);
         }
     }
 
@@ -80,7 +81,7 @@ public class SubQueryLineageHolder {
 
     public Map<String, QuerySet> getQuerySetAlias() {
         Map<String, QuerySet> aliasMapping = new HashMap<>();
-        for (EdgeTuple edgeTuple : lineageGraph.retrieveEdgesByLabel("has_alias")) {
+        for (EdgeTuple edgeTuple : lineageGraph.retrieveEdgesByLabel(EdgeType.HAS_ALIAS)) {
             aliasMapping.put((String) edgeTuple.target(), (QuerySet) edgeTuple.source());
         }
         return aliasMapping;

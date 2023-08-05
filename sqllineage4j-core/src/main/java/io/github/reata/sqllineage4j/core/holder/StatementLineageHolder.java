@@ -1,5 +1,7 @@
 package io.github.reata.sqllineage4j.core.holder;
 
+import io.github.reata.sqllineage4j.common.constant.EdgeType;
+import io.github.reata.sqllineage4j.common.constant.NodeTag;
 import io.github.reata.sqllineage4j.common.model.Table;
 import org.javatuples.Pair;
 
@@ -19,23 +21,23 @@ public class StatementLineageHolder extends SubQueryLineageHolder {
     }
 
     public Set<Table> getDrop() {
-        return propertyGetter("drop").stream().map(x -> (Table) x).collect(Collectors.toSet());
+        return propertyGetter(NodeTag.DROP).stream().map(x -> (Table) x).collect(Collectors.toSet());
     }
 
     public Set<Pair<Table, Table>> getRename() {
-        return lineageGraph.retrieveEdgesByLabel("rename").stream().map(
+        return lineageGraph.retrieveEdgesByLabel(EdgeType.RENAME).stream().map(
                 e -> new Pair<>((Table) e.source(), (Table) e.target())
         ).collect(Collectors.toSet());
     }
 
     public void addDrop(Table drop) {
-        propertySetter(drop, "drop");
+        propertySetter(drop, NodeTag.DROP);
     }
 
     public void addRename(Table src, Table tgt) {
         lineageGraph.addVertexIfNotExist(src);
         lineageGraph.addVertexIfNotExist(tgt);
-        lineageGraph.addEdgeIfNotExist("rename", src, tgt);
+        lineageGraph.addEdgeIfNotExist(EdgeType.RENAME, src, tgt);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package io.github.reata.sqllineage4j.core.holder;
 
+import io.github.reata.sqllineage4j.common.constant.EdgeType;
+import io.github.reata.sqllineage4j.common.constant.NodeTag;
 import io.github.reata.sqllineage4j.common.entity.EdgeTuple;
 import io.github.reata.sqllineage4j.common.model.Column;
 import io.github.reata.sqllineage4j.common.model.Table;
@@ -24,8 +26,8 @@ public class SQLLineageHolder {
         LineageGraph tableLineageGraph = getTableLineageGraph();
         Set<Table> sourceTables = tableLineageGraph.retrieveSourceOnlyVertices()
                 .stream().map(Table.class::cast).collect(Collectors.toSet());
-        Set<Table> sourceOnlyTables = retrieveTagTables("source_only");
-        Set<Table> selfLoopTables = retrieveTagTables("selfloop");
+        Set<Table> sourceOnlyTables = retrieveTagTables(NodeTag.SOURCE_ONLY);
+        Set<Table> selfLoopTables = retrieveTagTables(NodeTag.SELFLOOP);
         sourceTables.addAll(sourceOnlyTables);
         sourceTables.addAll(selfLoopTables);
         return sourceTables;
@@ -35,8 +37,8 @@ public class SQLLineageHolder {
         LineageGraph tableLineageGraph = getTableLineageGraph();
         Set<Table> targetTables = tableLineageGraph.retrieveTargetOnlyVertices()
                 .stream().map(Table.class::cast).collect(Collectors.toSet());
-        Set<Table> targetOnlyTables = retrieveTagTables("target_only");
-        Set<Table> selfLoopTables = retrieveTagTables("selfloop");
+        Set<Table> targetOnlyTables = retrieveTagTables(NodeTag.TARGET_ONLY);
+        Set<Table> selfLoopTables = retrieveTagTables(NodeTag.SELFLOOP);
         targetTables.addAll(targetOnlyTables);
         targetTables.addAll(selfLoopTables);
         return targetTables;
@@ -46,7 +48,7 @@ public class SQLLineageHolder {
         LineageGraph tableLineageGraph = getTableLineageGraph();
         Set<Table> intermediateTables = tableLineageGraph.retrieveConnectedVertices()
                 .stream().map(Table.class::cast).collect(Collectors.toSet());
-        intermediateTables.removeAll(retrieveTagTables("selfloop"));
+        intermediateTables.removeAll(retrieveTagTables(NodeTag.SELFLOOP));
         return intermediateTables;
     }
 
@@ -115,20 +117,20 @@ public class SQLLineageHolder {
                 Set<Table> write = holder.getWrite();
                 if (read.size() > 0 && write.size() == 0) {
                     // source only table comes from SELECT statement
-                    lineageGraph.updateVertices(Collections.singletonMap("source_only", Boolean.TRUE), read.toArray());
+                    lineageGraph.updateVertices(Collections.singletonMap(NodeTag.SOURCE_ONLY, Boolean.TRUE), read.toArray());
                 } else if (read.size() == 0 && write.size() > 0) {
                     // target only table comes from case like: 1) INSERT/UPDATE constant values; 2) CREATE TABLE
-                    lineageGraph.updateVertices(Collections.singletonMap("target_only", Boolean.TRUE), write.toArray());
+                    lineageGraph.updateVertices(Collections.singletonMap(NodeTag.TARGET_ONLY, Boolean.TRUE), write.toArray());
                 } else {
                     for (Table r : read) {
                         for (Table w : write) {
-                            lineageGraph.addEdgeIfNotExist("lineage", r, w);
+                            lineageGraph.addEdgeIfNotExist(EdgeType.LINEAGE, r, w);
                         }
                     }
                 }
             }
         }
-        lineageGraph.updateVertices(Collections.singletonMap("selfloop", Boolean.TRUE),
+        lineageGraph.updateVertices(Collections.singletonMap(NodeTag.SELFLOOP, Boolean.TRUE),
                 lineageGraph.retrieveSelfLoopVertices().stream().filter(x -> x instanceof Table).toArray());
         return lineageGraph;
     }
